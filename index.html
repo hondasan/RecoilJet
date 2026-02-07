@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Recoil Jet - Sky Pilot Edition</title>
+    <title>Recoil Jet - Sky Pilot Final</title>
     <style>
         body {
             margin: 0;
@@ -28,32 +28,35 @@
             justify-content: space-between;
             padding: 20px;
             box-sizing: border-box;
-            /* Transition for global UI shake */
             transition: transform 0.1s;
         }
-        /* Top HUD Container for Bouncing */
         .hud-top {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             transform-origin: top center;
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy easing */
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #score-display, #high-score-display {
+        #score-group {
+            text-align: left;
+        }
+        #altitude-display {
             color: white;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
             text-shadow: 2px 2px 0 #000;
-            text-align: left;
-            line-height: 1.5;
         }
         #high-score-display {
             color: #ffff00;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #000;
         }
         #hp-display {
-            font-size: 24px;
+            font-size: 28px;
             color: #ff99cc;
             text-shadow: 2px 2px 0 #000;
+            letter-spacing: 2px;
         }
         #heat-container {
             position: relative;
@@ -85,7 +88,7 @@
             font-weight: bold;
             text-shadow: 0 0 10px #ff0000;
             display: none;
-            animation: blinker 0.2s linear infinite; /* Faster blink */
+            animation: blinker 0.2s linear infinite;
         }
         #start-screen {
             position: absolute;
@@ -126,9 +129,9 @@
 
     <div id="ui-layer">
         <div class="hud-top" id="hud-top">
-            <div>
-                <div id="score-display">SCORE: 0<br>HEIGHT: 0m</div>
-                <div id="high-score-display">HI: 0</div>
+            <div id="score-group">
+                <div id="altitude-display">0m</div>
+                <div id="high-score-display">BEST: 0m</div>
             </div>
             <div style="display:flex; flex-direction:column; align-items:center;">
                 <div id="hp-display">❤❤❤</div>
@@ -141,13 +144,13 @@
     </div>
 
     <div id="start-screen">
-        <h1>RECOIL JET<br><span style="font-size:0.6em; color:white;">Sky Pilot Edition</span></h1>
+        <h1>RECOIL JET<br><span style="font-size:0.6em; color:white;">Sky Pilot Final</span></h1>
         <p>
             TAP & HOLD: <b>Shoot & Fly</b><br>
             RELEASE: <b>Spin & Aim</b><br><br>
-            <b>Magma is faster now!</b><br>
-            Land on islands to rest & bounce.<br>
-            <span style="color:#44ddff">Blue Pilot</span> is ready for takeoff!
+            Destroy enemies to get <b>HEARTS</b>!<br>
+            Avoid the <b>Electrical Walls</b>.<br>
+            Magma is fast. Keep climbing!
         </p>
         <p class="blink" style="margin-top: 20px; color: #44ddff; font-weight: bold; font-size: 20px;">[ TAP TO START ]</p>
     </div>
@@ -156,14 +159,20 @@
 
 <script>
 /**
- * RECOIL JET - SKY PILOT EDITION (v5)
- * Changes: Blue Character, Bouncy UI, Faster Magma, Coyote Time
+ * RECOIL JET - SKY PILOT EDITION (FINAL)
+ * Changes:
+ * - Faster Magma (0.8 base)
+ * - Item Drops (Heart/Star) on enemy kill
+ * - New Enemy Types (Chaser, Zigzag)
+ * - Hazard Walls (Electric)
+ * - Cute Sounds (Sine/Triangle waves)
+ * - High Score based on Altitude
  */
 
 const CONFIG = {
-    gravity: 0.07,          // Still floaty, but slightly heavier than v4
+    gravity: 0.07,
     rotSpeed: 0.05,
-    recoilForce: 2.1,       // Good strong kick
+    recoilForce: 2.1,
     shootRate: 6,
     heatRate: 2.5,
     coolRate: 3.0,
@@ -171,92 +180,85 @@ const CONFIG = {
     friction: 0.98,
     groundFriction: 0.85,
     cameraLerp: 0.1,
-    magmaSpeedBase: 0.6,    // FASTER (Requested)
+    magmaSpeedBase: 0.8,    // FASTER!
     hitStopDuration: 6,
-    coyoteTime: 10,         // Frames you can still jump after leaving ground
+    coyoteTime: 10,
     colors: {
-        player: '#44ddff',      // Sky Blue
+        player: '#44ddff',
         playerOutline: '#fff',
         bullet: '#fff',
         enemy: '#ffcc00',
+        enemyChaser: '#ff5555',
         platform: '#66cc66',
+        hazard: '#cc33ff',
         bg: '#222',
         magma: '#ff4400',
         guideShoot: 'rgba(255, 255, 255, 0.2)',
         guideMove: 'rgba(68, 221, 255, 0.5)', 
         marker: '#ffff00',
-        scarf: '#ffaa00'        // Orange (Complementary to Blue)
+        scarf: '#ffaa00'
     }
 };
 
-// --- AUDIO ---
+// --- CUTE AUDIO SYSTEM ---
 const AudioSys = {
     ctx: null,
     init: function() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (this.ctx.state === 'suspended') this.ctx.resume();
     },
-    playJump: function() {
+    // Helper for cute blips
+    playTone: function(type, freqStart, freqEnd, duration, vol) {
         if (!this.ctx) return;
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.frequency.setValueAtTime(200, t);
-        osc.frequency.linearRampToValueAtTime(600, t + 0.1);
-        gain.gain.setValueAtTime(0.1, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.1);
-        osc.type = 'sine';
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, t);
+        osc.frequency.linearRampToValueAtTime(freqEnd, t + duration);
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.linearRampToValueAtTime(0, t + duration);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.1);
+        osc.stop(t + duration);
+    },
+    playJump: function() {
+        this.playTone('sine', 250, 600, 0.15, 0.1);
     },
     playLand: function() {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        // Bouncy sound (Pitch bend down then up)
-        osc.frequency.setValueAtTime(150, t);
-        osc.frequency.linearRampToValueAtTime(100, t + 0.05);
-        osc.frequency.linearRampToValueAtTime(200, t + 0.15);
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.15);
-        osc.type = 'triangle';
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.15);
+        // "Boing" sound
+        this.playTone('triangle', 150, 250, 0.2, 0.15);
     },
     playPop: function() {
+        this.playTone('square', 400, 100, 0.1, 0.1);
+    },
+    playDamage: function() {
+        this.playTone('sawtooth', 150, 50, 0.3, 0.2);
+    },
+    playHeal: function() {
+        // "Pi-ro-lin!" Arpeggio
         if (!this.ctx) return;
-        const t = this.ctx.currentTime;
+        const now = this.ctx.currentTime;
+        this.playToneAt(now, 523.25, 'sine'); // C5
+        this.playToneAt(now + 0.05, 659.25, 'sine'); // E5
+        this.playToneAt(now + 0.1, 783.99, 'sine'); // G5
+        this.playToneAt(now + 0.15, 1046.50, 'sine'); // C6
+    },
+    playToneAt: function(t, freq, type) {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.frequency.setValueAtTime(400, t);
-        osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+        osc.type = type;
+        osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.1, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.1);
-        osc.type = 'square';
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
         osc.stop(t + 0.1);
     },
-    playDamage: function() {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.frequency.setValueAtTime(150, t);
-        osc.frequency.linearRampToValueAtTime(80, t + 0.3);
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.3);
-        osc.type = 'sawtooth';
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.3);
+    playGem: function() {
+        this.playTone('sine', 880, 1200, 0.1, 0.1);
     }
 };
 
@@ -267,9 +269,9 @@ let width, height;
 
 // State
 let gameState = 'START';
-let score = 0;
-let highScore = parseInt(localStorage.getItem('recoilJetHighScore')) || 0;
-let altitude = 0;
+let altitude = 0; // Current Altitude (m)
+let maxAltitude = 0; // Max achieved this run
+let highScore = parseInt(localStorage.getItem('recoilJetHighAltitude')) || 0;
 let frameCount = 0;
 let hitStopFrames = 0;
 let shakeIntensity = 0;
@@ -297,7 +299,7 @@ function resize() {
     height = window.innerHeight;
     canvas.width = width;
     canvas.height = height;
-    document.getElementById('high-score-display').innerText = `HI: ${highScore}`;
+    document.getElementById('high-score-display').innerText = `BEST: ${Math.floor(highScore)}m`;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -308,11 +310,8 @@ class Scarf {
     constructor(length) {
         this.nodes = [];
         this.length = length;
-        for (let i = 0; i < length; i++) {
-            this.nodes.push({ x: 0, y: 0 });
-        }
+        for (let i = 0; i < length; i++) this.nodes.push({ x: 0, y: 0 });
     }
-
     update(headX, headY) {
         this.nodes[0] = { x: headX, y: headY };
         for (let i = 1; i < this.length; i++) {
@@ -322,10 +321,9 @@ class Scarf {
             let dy = prev.y - curr.y;
             curr.x += dx * 0.3; 
             curr.y += dy * 0.3;
-            curr.y += 0.5; // Gravity
+            curr.y += 0.5;
         }
     }
-
     draw(ctx) {
         ctx.beginPath();
         ctx.moveTo(this.nodes[0].x, this.nodes[0].y);
@@ -359,7 +357,6 @@ class Player {
         this.overheated = false;
         this.invincible = 0;
         this.grounded = false;
-        this.coyoteTimer = 0; // Frames since left ground
         this.dead = false;
         this.scaleX = 1;
         this.scaleY = 1;
@@ -371,9 +368,6 @@ class Player {
 
         if (!this.grounded) {
             this.vy += CONFIG.gravity;
-            this.coyoteTimer++;
-        } else {
-            this.coyoteTimer = 0;
         }
 
         const canShoot = input.active && !this.overheated;
@@ -381,45 +375,34 @@ class Player {
         if (canShoot) {
             this.heat += CONFIG.heatRate;
             this.grounded = false;
-            // No coyote reset here, you are flying
             if (this.heat >= CONFIG.maxHeat) {
                 this.overheated = true;
                 this.heat = CONFIG.maxHeat;
                 setTimeout(() => { this.overheated = false; }, 1000);
             }
-
-            if (frameCount % CONFIG.shootRate === 0) {
-                this.shoot();
-            }
+            if (frameCount % CONFIG.shootRate === 0) this.shoot();
         } else {
             this.angle += CONFIG.rotSpeed;
             this.heat = Math.max(0, this.heat - CONFIG.coolRate);
         }
 
-        // Friction
-        if (this.grounded) {
-            this.vx *= CONFIG.groundFriction;
-            this.scaleX += (1 - this.scaleX) * 0.2;
-            this.scaleY += (1 - this.scaleY) * 0.2;
-        } else {
-            this.vx *= CONFIG.friction;
-            this.vy *= CONFIG.friction;
-            this.scaleX += (1 - this.scaleX) * 0.1;
-            this.scaleY += (1 - this.scaleY) * 0.1;
-        }
+        // Physics
+        const fric = this.grounded ? CONFIG.groundFriction : CONFIG.friction;
+        this.vx *= fric;
+        // Squash & Stretch return
+        const restore = this.grounded ? 0.2 : 0.1;
+        this.scaleX += (1 - this.scaleX) * restore;
+        this.scaleY += (1 - this.scaleY) * restore;
+
+        // Air drag
+        if (!this.grounded) this.vy *= CONFIG.friction;
 
         this.x += this.vx;
         this.y += this.vy;
 
         // Walls
-        if (this.x < this.radius) {
-            this.x = this.radius;
-            this.vx *= -0.6;
-        }
-        if (this.x > width - this.radius) {
-            this.x = width - this.radius;
-            this.vx *= -0.6;
-        }
+        if (this.x < this.radius) { this.x = this.radius; this.vx *= -0.6; }
+        if (this.x > width - this.radius) { this.x = width - this.radius; this.vx *= -0.6; }
 
         this.scarf.update(this.x, this.y);
         if (this.invincible > 0) this.invincible--;
@@ -439,17 +422,12 @@ class Player {
     shoot() {
         const muzzleX = this.x + Math.cos(this.angle) * (this.radius + 8);
         const muzzleY = this.y + Math.sin(this.angle) * (this.radius + 8);
-        
         bullets.push(new Bullet(muzzleX, muzzleY, this.angle));
+        
+        this.vx -= Math.cos(this.angle) * CONFIG.recoilForce;
+        this.vy -= Math.sin(this.angle) * CONFIG.recoilForce;
 
-        const fx = Math.cos(this.angle) * CONFIG.recoilForce;
-        const fy = Math.sin(this.angle) * CONFIG.recoilForce;
-        this.vx -= fx;
-        this.vy -= fy;
-
-        this.scaleY = 1.3; 
-        this.scaleX = 0.8; 
-
+        this.scaleY = 1.3; this.scaleX = 0.8; 
         addShake(2);
         particles.push(new Particle(muzzleX, muzzleY, this.angle, 'puff'));
         AudioSys.playJump();
@@ -457,23 +435,25 @@ class Player {
 
     land() {
         if (!this.grounded) {
-            // Coyote Time check: if we were grounded very recently, don't play land impact again?
-            // Actually, landing physics should trigger every time we touch down.
             this.grounded = true;
             this.vy = 0;
-            
-            // Squash
-            this.scaleY = 0.6;
-            this.scaleX = 1.4;
-            
-            // UI BOUNCE!
-            hudBounce = 1.15;
-            
+            this.scaleY = 0.6; this.scaleX = 1.4;
+            hudBounce = 1.15; // UI Bounce
             AudioSys.playLand();
-            
-            for(let i=0; i<5; i++) {
-                particles.push(new Particle(this.x + (Math.random()-0.5)*20, this.y+this.radius, -Math.PI/2, 'puff'));
-            }
+            for(let i=0; i<5; i++) particles.push(new Particle(this.x+(Math.random()-0.5)*20, this.y+this.radius, -Math.PI/2, 'puff'));
+        }
+    }
+
+    heal() {
+        if (this.hp < this.maxHp) {
+            this.hp++;
+            floaters.push(new Floater(this.x, this.y - 20, "HEAL!", '#ff99cc'));
+            AudioSys.playHeal();
+            hudBounce = 1.2;
+        } else {
+            // Overheal score
+            floaters.push(new Floater(this.x, this.y - 20, "BONUS!", '#ffff00'));
+            AudioSys.playGem();
         }
     }
 
@@ -482,7 +462,7 @@ class Player {
         this.hp--;
         this.invincible = 60;
         addShake(15);
-        hudBounce = 0.9; // Shrink UI on damage
+        hudBounce = 0.9;
         AudioSys.playDamage();
         if (this.hp <= 0) {
             this.dead = true;
@@ -525,7 +505,7 @@ class Player {
         // Goggles
         ctx.fillStyle = '#333';
         ctx.fillRect(-18, -4, 36, 6);
-        ctx.fillStyle = '#ffaa00'; // Amber Lenses (Contrast)
+        ctx.fillStyle = '#ffaa00';
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(-7, -1, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
@@ -539,123 +519,179 @@ class Player {
 
 class Platform {
     constructor(x, y, w) {
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = 24;
+        this.x = x; this.y = y; this.w = w; this.h = 24;
     }
     draw(ctx) {
         ctx.fillStyle = CONFIG.colors.platform;
-        ctx.beginPath();
-        ctx.roundRect(this.x, this.y, this.w, this.h, 12);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, this.h, 12); ctx.fill();
         ctx.fillStyle = '#ccffcc';
-        ctx.beginPath();
-        ctx.roundRect(this.x, this.y, this.w, 8, 4);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, 8, 4); ctx.fill();
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath();
-        ctx.roundRect(this.x+5, this.y+this.h-8, this.w-10, 4, 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(this.x+5, this.y+this.h-8, this.w-10, 4, 2); ctx.fill();
+    }
+}
+
+class HazardWall {
+    constructor(x, y, w, h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+    }
+    draw(ctx) {
+        ctx.fillStyle = '#440044';
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+        // Electric effect
+        if (Math.floor(frameCount/5)%2 === 0) {
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x+2, this.y+2, this.w-4, this.h-4);
+        }
+        ctx.strokeStyle = '#aa00aa';
+        ctx.strokeRect(this.x, this.y, this.w, this.h);
+        
+        // Icon
+        ctx.fillStyle = '#ff00ff';
+        ctx.textAlign = 'center';
+        ctx.font = '20px Arial';
+        ctx.fillText("⚡", this.x + this.w/2, this.y + this.h/2 + 7);
+    }
+}
+
+class Item {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type; // 'heart' or 'gem'
+        this.vy = -4; // Pop up
+        this.vx = (Math.random() - 0.5) * 4;
+        this.life = 300; // 5 seconds
+        this.angle = 0;
+    }
+    update() {
+        this.vy += 0.2; // Gravity
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.95;
+        this.life--;
+        this.angle += 0.1;
+    }
+    draw(ctx) {
+        if (this.life < 60 && Math.floor(this.life/4)%2===0) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        // Bobbing
+        ctx.translate(0, Math.sin(this.life * 0.1) * 3);
+        
+        if (this.type === 'heart') {
+            ctx.fillStyle = '#ff3366';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("❤", 0, 8);
+        } else {
+            ctx.fillStyle = '#00ffff';
+            ctx.rotate(this.angle);
+            ctx.fillRect(-6, -6, 12, 12);
+        }
+        ctx.restore();
     }
 }
 
 class Bullet {
     constructor(x, y, angle) {
-        this.x = x;
-        this.y = y;
-        this.vx = Math.cos(angle) * 14;
-        this.vy = Math.sin(angle) * 14;
+        this.x = x; this.y = y;
+        this.vx = Math.cos(angle) * 14; this.vy = Math.sin(angle) * 14;
         this.life = 40;
     }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life--;
-    }
+    update() { this.x += this.vx; this.y += this.vy; this.life--; }
     draw(ctx) {
         ctx.fillStyle = CONFIG.colors.bullet;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI*2); ctx.fill();
     }
 }
 
 class Enemy {
-    constructor(y) {
+    constructor(y, type) {
         this.x = Math.random() * (width - 60) + 30;
         this.y = y;
+        this.type = type; // 0: Normal, 1: Chaser, 2: Zigzag
         this.radius = 16;
         this.hp = 1;
+        if (type === 1) this.hp = 2; // Chaser is tougher
         this.angle = 0;
         this.startX = this.x;
+        this.startY = this.y;
         this.offset = Math.random() * 100;
+        this.time = 0;
     }
-    update() {
-        this.angle += 0.05;
-        this.x = this.startX + Math.sin(this.angle * 2 + this.offset) * 60;
+    update(playerX, playerY) {
+        this.time++;
+        
+        if (this.type === 0) {
+            // Normal: Hover
+            this.angle += 0.05;
+            this.x = this.startX + Math.sin(this.angle * 2 + this.offset) * 60;
+        } else if (this.type === 1) {
+            // Chaser: Slowly move towards player
+            const dx = playerX - this.x;
+            const dy = playerY - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 300) { // Aggro range
+                this.x += (dx / dist) * 1.5;
+                this.y += (dy / dist) * 1.5;
+            }
+            this.angle += 0.1;
+        } else if (this.type === 2) {
+            // Zigzag: Fast horizontal
+            this.x = this.startX + Math.sin(this.time * 0.1) * 120;
+            this.y = this.startY + Math.cos(this.time * 0.05) * 30;
+            this.angle -= 0.1;
+        }
     }
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.fillStyle = CONFIG.colors.enemy;
+        ctx.fillStyle = (this.type === 1) ? CONFIG.colors.enemyChaser : CONFIG.colors.enemy;
         ctx.beginPath();
-        for(let i=0; i<8; i++) {
-            let rot = this.angle + (i * Math.PI * 2) / 8;
+        const spikes = (this.type === 1) ? 12 : 8;
+        for(let i=0; i<spikes; i++) {
+            let rot = this.angle + (i * Math.PI * 2) / spikes;
             let r = (i%2===0) ? this.radius : this.radius * 0.6;
-            let px = Math.cos(rot) * r;
-            let py = Math.sin(rot) * r;
-            ctx.lineTo(px, py);
+            ctx.lineTo(Math.cos(rot)*r, Math.sin(rot)*r);
         }
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
         ctx.restore();
     }
 }
 
 class Particle {
     constructor(x, y, angle, type) {
-        this.x = x;
-        this.y = y;
-        this.life = 1.0;
-        this.type = type;
+        this.x = x; this.y = y; this.life = 1.0; this.type = type;
         const speed = (type === 'puff') ? 2 : 5;
-        this.vx = (Math.random()-0.5)*speed;
-        this.vy = (Math.random()-0.5)*speed;
+        this.vx = (Math.random()-0.5)*speed; this.vy = (Math.random()-0.5)*speed;
         this.decay = (type === 'puff') ? 0.08 : 0.05;
     }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life -= this.decay;
-    }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
     draw(ctx) {
         ctx.globalAlpha = this.life;
         ctx.fillStyle = (this.type === 'puff') ? '#fff' : CONFIG.colors.enemy;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, (this.type === 'puff') ? 8 : 4, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x, this.y, (this.type === 'puff') ? 8 : 4, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
     }
 }
 
 class Floater {
-    constructor(x, y, text) {
-        this.x = x;
-        this.y = y;
-        this.text = text;
-        this.life = 40;
+    constructor(x, y, text, color) {
+        this.x = x; this.y = y; this.text = text; this.life = 50; this.color = color || 'white';
     }
     update() { this.y -= 1; this.life--; }
     draw(ctx) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.life/40})`;
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = this.life/50;
         ctx.font = 'bold 20px Verdana';
         ctx.textAlign = 'center';
         ctx.fillText(this.text, this.x, this.y);
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -664,6 +700,8 @@ let player;
 let bullets = [];
 let enemies = [];
 let platforms = [];
+let hazards = [];
+let items = [];
 let particles = [];
 let magmaY = 0;
 let cameraY = 0;
@@ -672,10 +710,10 @@ let levelGenY = 0;
 function addShake(amt) { shakeIntensity = Math.min(shakeIntensity + amt, 15); }
 
 function saveHighScore() {
-    if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('recoilJetHighScore', highScore);
-        document.getElementById('high-score-display').innerText = `HI: ${highScore}`;
+    if (Math.floor(maxAltitude) > highScore) {
+        highScore = Math.floor(maxAltitude);
+        localStorage.setItem('recoilJetHighAltitude', highScore);
+        document.getElementById('high-score-display').innerText = `BEST: ${highScore}m`;
     }
 }
 
@@ -689,19 +727,30 @@ function generateLevel() {
         const x = Math.random() * (width - w);
 
         const currentHeight = Math.abs(levelGenY);
-        let enemyChance = 0.3;
-        if (currentHeight < 1500) enemyChance = 0;
+        let enemyChance = 0.4;
+        let hazardChance = 0.2;
 
-        if (rand > enemyChance) {
-             platforms.push(new Platform(x, levelGenY, w));
+        if (currentHeight < 1000) { enemyChance = 0; hazardChance = 0; }
+
+        if (rand < hazardChance) {
+             // Spawn Hazard Wall
+             hazards.push(new HazardWall(x, levelGenY, 100, 30));
+        } else if (rand < hazardChance + enemyChance) {
+             // Spawn Enemy (Random Type)
+             let type = 0;
+             if (currentHeight > 3000 && Math.random() > 0.7) type = 1; // Chaser
+             if (currentHeight > 5000 && Math.random() > 0.5) type = 2; // Zigzag
+             enemies.push(new Enemy(levelGenY, type));
         } else {
-             enemies.push(new Enemy(levelGenY));
+             platforms.push(new Platform(x, levelGenY, w));
         }
     }
     
     const delY = cameraY + height + 200;
     enemies = enemies.filter(e => e.y < delY);
     platforms = platforms.filter(p => p.y < delY);
+    hazards = hazards.filter(h => h.y < delY);
+    items = items.filter(i => i.y < delY);
 }
 
 function startGame() {
@@ -710,9 +759,12 @@ function startGame() {
     bullets = [];
     enemies = [];
     platforms = [];
+    hazards = [];
+    items = [];
     particles = [];
     floaters = [];
-    score = 0;
+    altitude = 0;
+    maxAltitude = 0;
     frameCount = 0;
     magmaY = height + 800; 
     cameraY = 0;
@@ -732,24 +784,28 @@ function gameOver() {
     saveHighScore();
     AudioSys.playDamage();
     document.getElementById('start-screen').style.display = 'flex';
-    document.querySelector('#start-screen h1').innerText = "TRY AGAIN?";
+    document.querySelector('#start-screen h1').innerText = "GAME OVER";
     document.querySelector('#start-screen p').innerHTML = 
-        `SCORE: ${score}<br>HI: ${highScore}<br>HEIGHT: ${Math.floor(altitude)}m`;
+        `REACHED: ${Math.floor(maxAltitude)}m<br>BEST: ${highScore}m`;
 }
 
 function update() {
     if (hitStopFrames > 0) { hitStopFrames--; return; }
 
-    // UI Bounce Physics
+    // UI Bounce
     hudBounce += (1.0 - hudBounce) * 0.1;
     document.getElementById('hud-top').style.transform = `scale(${hudBounce})`;
 
+    // Camera & Altitude
     const targetOffset = height * 0.7; 
     const targetCamY = player.y - targetOffset;
     cameraY += (targetCamY - cameraY) * CONFIG.cameraLerp;
     
+    altitude = Math.abs(Math.min(0, player.y)) / 10;
+    maxAltitude = Math.max(maxAltitude, altitude);
+
     // Faster Magma
-    let magmaSpeed = CONFIG.magmaSpeedBase + (Math.abs(cameraY) / 8000); // Faster acceleration
+    let magmaSpeed = CONFIG.magmaSpeedBase + (altitude / 5000); 
     if (player.y > magmaY - 300) magmaSpeed *= 0.5; // Mercy
     magmaY -= magmaSpeed;
 
@@ -758,18 +814,13 @@ function update() {
     if (dist < 500 && !player.dead) {
         warn.style.display = 'block';
         warn.style.opacity = 1 - (dist/500);
-    } else {
-        warn.style.display = 'none';
-    }
+    } else { warn.style.display = 'none'; }
 
-    if (player.y > magmaY) {
-        player.dead = true;
-        gameOver();
-    }
+    if (player.y > magmaY) { player.dead = true; gameOver(); }
 
     player.update();
 
-    // Platform Logic
+    // Platforms
     player.grounded = false;
     platforms.forEach(p => {
         if (player.vy >= 0 &&
@@ -784,6 +835,16 @@ function update() {
         }
     });
 
+    // Hazards
+    hazards.forEach(h => {
+        if (player.x > h.x && player.x < h.x + h.w &&
+            player.y > h.y && player.y < h.y + h.h) {
+                player.takeDamage();
+                player.vy = 10; // Knock down
+        }
+    });
+
+    // Bullets vs Enemy
     bullets.forEach((b, i) => {
         b.update();
         if (b.life<=0) { bullets.splice(i,1); return; }
@@ -796,18 +857,40 @@ function update() {
                 AudioSys.playPop();
                 if(e.hp<=0) {
                     enemies.splice(j,1);
-                    score += 100;
-                    floaters.push(new Floater(e.x, e.y, "+100"));
                     hitStopFrames = 3;
                     for(let k=0; k<5; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
+                    
+                    // DROP ITEM (30% Chance Heart, 20% Chance Gem)
+                    const rand = Math.random();
+                    if (rand < 0.3) {
+                        items.push(new Item(e.x, e.y, 'heart'));
+                    } else if (rand < 0.5) {
+                        items.push(new Item(e.x, e.y, 'gem'));
+                    }
                 }
                 break;
             }
         }
     });
 
+    // Items Logic
+    items.forEach((it, i) => {
+        it.update();
+        if (it.life <= 0) { items.splice(i, 1); return; }
+        
+        if (Math.hypot(player.x - it.x, player.y - it.y) < player.radius + 15) {
+            if (it.type === 'heart') {
+                player.heal();
+            } else {
+                floaters.push(new Floater(it.x, it.y - 20, "NICE!", '#00ffff'));
+                AudioSys.playGem();
+            }
+            items.splice(i, 1);
+        }
+    });
+
     enemies.forEach(e => {
-        e.update();
+        e.update(player.x, player.y);
         if (Math.hypot(player.x-e.x, player.y-e.y) < player.radius + e.radius) {
             player.takeDamage();
             player.vx = (player.x - e.x) * 0.2;
@@ -816,16 +899,13 @@ function update() {
     });
 
     particles.forEach((p, i) => {
-        p.update();
-        if(p.life<=0) particles.splice(i,1);
+        p.update(); if(p.life<=0) particles.splice(i,1);
     });
     floaters.forEach((f, i) => {
-        f.update();
-        if(f.life<=0) floaters.splice(i,1);
+        f.update(); if(f.life<=0) floaters.splice(i,1);
     });
 
     generateLevel();
-    altitude = Math.max(altitude, Math.abs(Math.min(0, player.y)) / 10);
     frameCount++;
 }
 
@@ -835,10 +915,7 @@ function findNextTarget() {
     platforms.forEach(p => {
         if (p.y < player.y - 50) {
             const dy = player.y - p.y;
-            if (dy < minDist) {
-                minDist = dy;
-                best = p;
-            }
+            if (dy < minDist) { minDist = dy; best = p; }
         }
     });
     return best;
@@ -865,7 +942,9 @@ function draw() {
     ctx.fill();
 
     platforms.forEach(p => p.draw(ctx));
+    hazards.forEach(h => h.draw(ctx));
     enemies.forEach(e => e.draw(ctx));
+    items.forEach(i => i.draw(ctx));
     particles.forEach(p => p.draw(ctx));
     bullets.forEach(b => b.draw(ctx));
     player.draw(ctx);
@@ -899,7 +978,7 @@ function draw() {
 
     ctx.restore();
     
-    document.getElementById('score-display').innerHTML = `SCORE: ${score}<br>HEIGHT: ${Math.floor(altitude)}m`;
+    document.getElementById('altitude-display').innerText = `${Math.floor(altitude)}m`;
 }
 
 function gameLoop() {
