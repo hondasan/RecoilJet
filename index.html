@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Recoil Jet - Discovery Edition</title>
+    <title>Recoil Jet - Sky Ace Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
@@ -12,10 +12,10 @@
             overflow: hidden;
             background-color: #2b2b40;
             font-family: 'Fredoka One', cursive, sans-serif;
-            touch-action: none; /* Prevent browser zooming/scrolling */
+            touch-action: none;
             user-select: none;
-            -webkit-user-select: none; /* Safari */
-            -webkit-touch-callout: none; /* Safari */
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
         canvas {
             display: block;
@@ -43,11 +43,11 @@
         }
         #score-group {
             text-align: left;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
             padding: 10px 20px;
             border-radius: 20px;
             backdrop-filter: blur(5px);
-            border: 3px solid rgba(255, 255, 255, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.5);
         }
         #altitude-display {
             color: #ffffff;
@@ -88,7 +88,7 @@
         }
         #magma-warning {
             position: absolute;
-            bottom: 60px;
+            bottom: 80px;
             left: 0;
             width: 100%;
             text-align: center;
@@ -115,7 +115,6 @@
             text-align: center;
             white-space: nowrap;
         }
-        /* Discovery Text Animation */
         .pop-in {
             animation: popIn 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
@@ -131,7 +130,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(43, 43, 64, 0.95);
+            background: rgba(20, 20, 30, 0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -162,7 +161,7 @@
             margin-top: 30px;
             color: #fff;
             background-color: #ff3366;
-            padding: 20px 60px; /* Larger touch area */
+            padding: 20px 60px;
             border-radius: 50px;
             font-size: 28px;
             font-weight: bold;
@@ -200,13 +199,13 @@
     </div>
 
     <div id="start-screen">
-        <h1>RECOIL JET<br><span style="font-size:0.5em; color:#ff99cc;">Discovery Edition</span></h1>
+        <h1>RECOIL JET<br><span style="font-size:0.5em; color:#ff99cc;">Sky Ace Edition</span></h1>
         <p>
             TAP & HOLD: <b>Shoot & Fly</b><br>
             RELEASE: <b>Spin & Aim</b><br><br>
-            Find <b>Shields</b> and <b>Boosts</b>!<br>
-            Defeat new enemies!<br>
-            Discover the sky!
+            Defeat enemies to <b>PUSH BACK MAGMA</b>!<br>
+            Climb higher to see the sky change.<br>
+            Be the Ace Pilot!
         </p>
         <div class="start-btn" id="start-btn">LET'S GO!</div>
     </div>
@@ -215,8 +214,10 @@
 
 <script>
 /**
- * RECOIL JET - DISCOVERY EDITION
- * Updates: Improved Touch/Mobile Support
+ * RECOIL JET - SKY ACE EDITION
+ * Updates:
+ * - Visuals: Doflamingo Style Glasses, Dynamic Background
+ * - Mechanics: Kill Enemy -> Magma Retreats (Risk/Reward)
  */
 
 const CONFIG = {
@@ -230,10 +231,11 @@ const CONFIG = {
     friction: 0.98,
     groundFriction: 0.85,
     cameraLerp: 0.1,
-    magmaSpeedBase: 0.8,
+    magmaSpeedBase: 0.9, // Slightly faster base
+    magmaRetreatOnKill: 150, // Pixels magma goes down on kill
     hitStopDuration: 6,
     coyoteTime: 10,
-    itemMagnetRange: 180, // Increased magnet range
+    itemMagnetRange: 200,
     colors: {
         player: '#44ddff',
         playerOutline: '#fff',
@@ -246,12 +248,12 @@ const CONFIG = {
         platform: '#77dd77',
         platformSide: '#55aa55',
         hazard: '#aa44aa',
-        bg: '#2b2b40',
         magma: '#ff5544',
         guideShoot: 'rgba(255, 255, 255, 0.2)',
         guideMove: 'rgba(68, 221, 255, 0.5)', 
         marker: '#ffff00',
-        scarf: '#ffaa00'
+        scarf: '#ffaa00',
+        glasses: '#ff0066' // Doflamingo Pink/Red
     }
 };
 
@@ -282,7 +284,6 @@ const AudioSys = {
         osc.start(t);
         osc.stop(t + duration);
     },
-    // No Spin Sound as requested
     playJump: function() { this.playTone('sine', 300, 800, 0.15, 0.1); },
     playPowerShoot: function() { this.playTone('square', 200, 600, 0.1, 0.05); },
     playLand: function() {
@@ -364,43 +365,35 @@ const input = { active: false };
 // --- INPUT HANDLING ---
 function handleInputStart(e) {
     if (e.type === 'keydown' && e.code !== 'Space') return;
-    // preventDefault helps with mobile browser behaviors
     if (e.type === 'touchstart') e.preventDefault();
     
     input.active = true;
     
     if (gameState === 'GAMEOVER') {
-        startGame(); // Allow restart with tap anywhere
+        startGame();
     }
 }
 
 function handleInputEnd(e) {
-    // If touch event, check if other fingers are still down
-    if (e.type === 'touchend' && e.touches.length > 0) {
-        return;
-    }
+    if (e.type === 'touchend' && e.touches.length > 0) return;
     input.active = false;
 }
 
-// Add event listeners to window for game control
 window.addEventListener('mousedown', handleInputStart);
 window.addEventListener('touchstart', handleInputStart, { passive: false });
 window.addEventListener('keydown', handleInputStart);
-
 window.addEventListener('mouseup', handleInputEnd);
 window.addEventListener('touchend', handleInputEnd);
 window.addEventListener('keyup', handleInputEnd);
 
-// Start Button specific handling (Improved for mobile)
 const startBtn = document.getElementById('start-btn');
 const startAction = (e) => {
-    e.preventDefault(); // Stop ghost clicks
+    e.preventDefault();
     e.stopPropagation();
     startGame();
 };
 startBtn.addEventListener('touchstart', startAction, { passive: false });
 startBtn.addEventListener('click', startAction);
-
 
 function resize() {
     width = window.innerWidth;
@@ -411,6 +404,57 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// --- BACKGROUND ---
+function getSkyColor(alt) {
+    // 0m: Night/Dawn (#2b2b40)
+    // 2000m: Morning Blue (#40a0ff)
+    // 5000m: Deep Blue (#0066cc)
+    // 8000m: Sunset/Space Edge (#220044)
+    // 10000m+: Deep Space (#000000)
+    
+    if (alt < 2000) return '#2b2b40'; // Simple steps for performance, or lerp?
+    // Let's do simple lerp between colors would be heavy to calc every frame for string style.
+    // Instead, we use a few discrete steps or simple gradient overlay.
+    // For JS Canvas, let's just return hex based on thresholds for efficiency.
+    
+    if (alt < 2000) return '#2b2b40';
+    if (alt < 5000) return '#40a0ff';
+    if (alt < 8000) return '#0066cc';
+    if (alt < 12000) return '#220044';
+    return '#000000';
+}
+
+function drawBackground(ctx, alt) {
+    // Dynamic Sky Gradient
+    let c1, c2;
+    if (alt < 2000) { c1 = '#2b2b40'; c2 = '#444466'; }
+    else if (alt < 5000) { c1 = '#40a0ff'; c2 = '#aaccff'; } // Sky
+    else if (alt < 8000) { c1 = '#0066cc'; c2 = '#003366'; } // Stratosphere
+    else if (alt < 12000) { c1 = '#220044'; c2 = '#ff9966'; } // Sunset edge
+    else { c1 = '#000000'; c2 = '#110022'; } // Space
+
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    grad.addColorStop(0, c1);
+    grad.addColorStop(1, c2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Stars in space
+    if (alt > 8000) {
+        ctx.fillStyle = '#ffffff';
+        for(let i=0; i<50; i++) {
+            // Pseudo random stars based on frame/index to keep them static relative to camera? 
+            // Simple static noise
+            const sx = (Math.sin(i * 132.1) * 43758.5453 * width) % width;
+            const sy = (Math.cos(i * 42.1) * 2142.12 + cameraY * 0.5) % height;
+            // Wrap
+            let py = sy;
+            if(py < 0) py += height;
+            ctx.fillRect(Math.abs(sx), py, 2, 2);
+        }
+    }
+}
 
 // --- ENTITIES ---
 
@@ -440,7 +484,6 @@ class Scarf {
              const yc = (this.nodes[i].y + this.nodes[i - 1].y) / 2;
              ctx.quadraticCurveTo(this.nodes[i - 1].x, this.nodes[i - 1].y, xc, yc);
         }
-        ctx.lineTo(this.nodes[this.length-1].x, this.nodes[this.length-1].y);
         
         if (isPower) {
             const grad = ctx.createLinearGradient(this.nodes[0].x, this.nodes[0].y, this.nodes[this.length-1].x, this.nodes[this.length-1].y);
@@ -480,17 +523,17 @@ class Player {
         this.scaleY = 1;
         this.scarf = new Scarf(12);
         this.powerMode = 0;
-        this.shield = 0; // Shield hit points
-        this.boostMode = 0; // Boost timer
+        this.shield = 0;
+        this.boostMode = 0;
     }
 
     update() {
         if (this.dead) return;
 
         if (this.boostMode > 0) {
-            this.vy = -15; // Rocket speed
+            this.vy = -15; 
             this.boostMode--;
-            this.powerMode = 2; // Keep power effects
+            this.powerMode = 2; 
             this.invincible = 2;
             if(frameCount % 3 === 0) particles.push(new Particle(this.x, this.y, Math.PI/2, 'puff'));
         } else if (!this.grounded) {
@@ -564,7 +607,6 @@ class Player {
         this.scaleY = 1.3; this.scaleX = 0.8; 
         addShake(isPower ? 5 : 2);
         
-        // Jet Particles
         for(let i=0; i<3; i++) {
             particles.push(new Particle(muzzleX, muzzleY, this.angle, 'puff'));
         }
@@ -621,7 +663,7 @@ class Player {
         pt.innerText = text;
         pt.style.display = 'block';
         pt.classList.remove('pop-in');
-        void pt.offsetWidth; // Trigger reflow
+        void pt.offsetWidth; 
         pt.classList.add('pop-in');
     }
 
@@ -631,7 +673,7 @@ class Player {
         if (this.shield > 0) {
             this.shield--;
             this.invincible = 60;
-            AudioSys.playShield(); // Break sound
+            AudioSys.playShield(); 
             addShake(5);
             return;
         }
@@ -679,40 +721,38 @@ class Player {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // SPIDER EYES (Sharp & Big)
-        // Doflamingo style sunglasses / Spidey eyes
-        ctx.fillStyle = '#222';
-        // Left Eye Frame
+        // --- DOFLAMINGO STYLE GLASSES ---
+        ctx.fillStyle = CONFIG.colors.glasses; // Pinkish Red
         ctx.beginPath();
-        ctx.moveTo(-16, -12); // Top outer
-        ctx.lineTo(-4, 0);    // Inner
-        ctx.lineTo(-14, 8);   // Bottom outer
-        ctx.quadraticCurveTo(-22, -4, -16, -12);
+        // Left Lens (Sharp Pointy)
+        ctx.moveTo(-4, 0);
+        ctx.lineTo(-18, -12); // Top outer tip
+        ctx.quadraticCurveTo(-22, 0, -14, 8); // Bottom curve
+        ctx.lineTo(-4, 2);
+        ctx.closePath();
         ctx.fill();
         
-        // Right Eye Frame
+        // Right Lens
         ctx.beginPath();
-        ctx.moveTo(16, -12);
-        ctx.lineTo(4, 0);
-        ctx.lineTo(14, 8);
-        ctx.quadraticCurveTo(22, -4, 16, -12);
+        ctx.moveTo(4, 0);
+        ctx.lineTo(18, -12); // Top outer tip
+        ctx.quadraticCurveTo(22, 0, 14, 8); // Bottom curve
+        ctx.lineTo(4, 2);
+        ctx.closePath();
         ctx.fill();
         
-        ctx.fillStyle = '#fff';
-        // Left Eye Lens
+        // Frame/Rim (White or thin)
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke(); // Outline the last path (Right lens)
+        
+        // Outline Left
         ctx.beginPath();
-        ctx.moveTo(-15, -10);
-        ctx.lineTo(-6, 0);
-        ctx.lineTo(-13, 6);
-        ctx.quadraticCurveTo(-18, -4, -15, -10);
-        ctx.fill();
-        // Right Eye Lens
-        ctx.beginPath();
-        ctx.moveTo(15, -10);
-        ctx.lineTo(6, 0);
-        ctx.lineTo(13, 6);
-        ctx.quadraticCurveTo(18, -4, 15, -10);
-        ctx.fill();
+        ctx.moveTo(-4, 0);
+        ctx.lineTo(-18, -12);
+        ctx.quadraticCurveTo(-22, 0, -14, 8);
+        ctx.lineTo(-4, 2);
+        ctx.stroke();
 
         // HELMET / ANTENNA
         ctx.beginPath();
@@ -765,9 +805,8 @@ class Platform {
         ctx.fillStyle = CONFIG.colors.platform;
         ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, 12, 6); ctx.fill();
         
-        // Decoration
         if(this.moving) {
-            ctx.fillStyle = '#ffffaa'; // Moving indicator
+            ctx.fillStyle = '#ffffaa';
             ctx.beginPath(); ctx.arc(this.x + this.w/2, this.y + 15, 5, 0, Math.PI*2); ctx.fill();
         } else {
             ctx.fillStyle = 'rgba(255,255,255,0.3)';
@@ -802,7 +841,7 @@ class Item {
     constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.type = type; // heart, power, shield, boost, gem
+        this.type = type; 
         this.vy = -4; 
         this.vx = (Math.random() - 0.5) * 4;
         this.life = 400; 
@@ -819,7 +858,7 @@ class Item {
         }
         
         if (this.magnet) {
-            const speed = 10; // Faster magnet
+            const speed = 10;
             this.x += (dx / dist) * speed;
             this.y += (dy / dist) * speed;
         } else {
@@ -891,7 +930,7 @@ class Enemy {
     constructor(y, type) {
         this.x = Math.random() * (width - 60) + 30;
         this.y = y;
-        this.type = type; // 0:Normal, 1:Chaser, 2:Zigzag, 3:Gazer, 4:Blocker
+        this.type = type; 
         this.radius = 20;
         this.hp = 1;
         if (type === 1 || type === 4) this.hp = 3;
@@ -919,10 +958,10 @@ class Enemy {
             this.x = this.startX + Math.sin(this.time * 0.1) * 120;
             this.y = this.startY + Math.cos(this.time * 0.05) * 30;
             this.angle -= 0.1;
-        } else if (this.type === 3) { // Gazer (Rotates to look at player)
+        } else if (this.type === 3) { // Gazer
             this.x = this.startX + Math.sin(this.time * 0.02) * 80;
             this.angle = Math.atan2(playerY - this.y, playerX - this.x);
-        } else if (this.type === 4) { // Blocker (Horizontal Patrol)
+        } else if (this.type === 4) { // Blocker
             this.x = this.startX + Math.sin(this.time * 0.03) * 150;
             this.angle = 0;
         }
@@ -935,7 +974,6 @@ class Enemy {
             ctx.rotate(this.angle);
             ctx.fillStyle = CONFIG.colors.enemyGazer;
             ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill();
-            // Eye
             ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(10, 0, 8, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#000';
@@ -946,7 +984,6 @@ class Enemy {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
             ctx.strokeRect(-20, -20, 40, 40);
-            // Face
             ctx.fillStyle = '#000';
             ctx.fillRect(-10, -5, 20, 10);
         } else { // Others
@@ -965,7 +1002,6 @@ class Enemy {
             }
             ctx.closePath();
             ctx.fill();
-            // Eyes
             ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(-6, -6, 6, 0, Math.PI*2); ctx.fill();
             ctx.beginPath(); ctx.arc(6, -6, 6, 0, Math.PI*2); ctx.fill();
@@ -1181,12 +1217,10 @@ function update() {
             const hitRadius = e.radius + (b.isPower ? 20 : 10);
             
             if (dist < hitRadius) {
-                // Damage calculation
                 let dmg = 1;
                 if(b.isPower) dmg = 10;
-                // Blocker logic: Only damage from back/side (simple check: player below enemy?)
-                if(e.type === 4 && player.y < e.y) dmg = 0; // Shielded from top (actually let's make it shielded from front?)
-                // Actually Blocker: hard shell. Let's make it simple: High HP
+                
+                if(e.type === 4 && player.y < e.y) dmg = 0; 
                 
                 e.hp -= dmg;
                 if (!b.isPower) bullets.splice(i,1); 
@@ -1197,23 +1231,25 @@ function update() {
                     hitStopFrames = b.isPower ? 6 : 3;
                     if(b.isPower) addShake(5);
                     
+                    // Kill Reward: Retreat Magma!
+                    magmaY += CONFIG.magmaRetreatOnKill;
+                    floaters.push(new Floater(e.x, e.y, "SAFE!", '#00ff00'));
+                    
                     comboCount++;
                     comboTimer = 120;
                     AudioSys.playCombo(Math.min(comboCount, 10));
-                    floaters.push(new Floater(e.x, e.y, `${comboCount} HIT!`, '#ffaa00'));
+                    floaters.push(new Floater(e.x, e.y - 20, `${comboCount} HIT!`, '#ffaa00'));
                     
                     for(let k=0; k<5; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
                     
                     const rand = Math.random();
-                    // Discovery: More items
                     if (rand < 0.20) items.push(new Item(e.x, e.y, 'heart'));
                     else if (rand < 0.35) items.push(new Item(e.x, e.y, 'shield'));
                     else if (rand < 0.50) items.push(new Item(e.x, e.y, 'boost'));
                     else if (rand < 0.60) items.push(new Item(e.x, e.y, 'power'));
                     else items.push(new Item(e.x, e.y, 'gem'));
                 } else {
-                    // Hit but not dead (Blocker sound)
-                    if(e.type === 4) AudioSys.playDamage(); // Metal sound reuse
+                    if(e.type === 4) AudioSys.playDamage(); 
                 }
                 break;
             }
@@ -1245,6 +1281,10 @@ function update() {
                 AudioSys.playPop();
                 addShake(5);
                 floaters.push(new Floater(e.x, e.y, "CRUSH!", '#ffff00'));
+                
+                // Kill Reward
+                magmaY += CONFIG.magmaRetreatOnKill;
+                
                 for(let k=0; k<8; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
             } else {
                 player.takeDamage();
@@ -1278,8 +1318,8 @@ function findNextTarget() {
 }
 
 function draw() {
-    ctx.fillStyle = CONFIG.colors.bg;
-    ctx.fillRect(0, 0, width, height);
+    // Dynamic Sky
+    drawBackground(ctx, altitude);
 
     ctx.save();
     let shakeX = (Math.random()-0.5) * shakeIntensity;
