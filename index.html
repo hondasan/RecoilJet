@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Recoil Jet - Pop Star Edition</title>
+    <title>Recoil Jet - Discovery Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #2b2b40; /* Slightly purple dark bg */
-            font-family: 'Fredoka One', cursive, sans-serif; /* Cute rounded font */
+            background-color: #2b2b40;
+            font-family: 'Fredoka One', cursive, sans-serif;
             touch-action: none;
             user-select: none;
         }
@@ -110,12 +110,18 @@
             text-shadow: 4px 4px 0 #ff00aa;
             display: none;
             pointer-events: none;
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            text-align: center;
+            white-space: nowrap;
+        }
+        /* Discovery Text Animation */
+        .pop-in {
+            animation: popIn 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
         @keyframes popIn {
             0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-            70% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
         }
         #start-screen {
             position: absolute;
@@ -123,7 +129,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(43, 43, 64, 0.9);
+            background: rgba(43, 43, 64, 0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -185,17 +191,17 @@
             </div>
         </div>
         <div id="magma-warning">🔥 RUN AWAY! 🔥</div>
-        <div id="power-text">HYPER JET!</div>
+        <div id="power-text"></div>
     </div>
 
     <div id="start-screen">
-        <h1>RECOIL JET<br><span style="font-size:0.5em; color:#ff99cc;">Pop Star Edition</span></h1>
+        <h1>RECOIL JET<br><span style="font-size:0.5em; color:#ff99cc;">Discovery Edition</span></h1>
         <p>
             TAP & HOLD: <b>Shoot & Fly</b><br>
             RELEASE: <b>Spin & Aim</b><br><br>
-            Defeat enemies for <b>HEARTS</b>!<br>
-            Grab <b>⚡</b> for HYPER MODE!<br>
-            Collect items to score!
+            Find <b>Shields</b> and <b>Boosts</b>!<br>
+            Defeat new enemies!<br>
+            Discover the sky!
         </p>
         <div class="start-btn" onclick="startGame()">LET'S GO!</div>
     </div>
@@ -204,8 +210,8 @@
 
 <script>
 /**
- * RECOIL JET - POP STAR EDITION
- * Focus: Cute Audio, Pop Visuals, Fun Feedback, Item Magnet
+ * RECOIL JET - DISCOVERY EDITION
+ * Updates: Spider-Eyes, No Spin Sound, New Items (Shield, Boost), New Enemies, Moving Platforms
  */
 
 const CONFIG = {
@@ -222,7 +228,7 @@ const CONFIG = {
     magmaSpeedBase: 0.8,
     hitStopDuration: 6,
     coyoteTime: 10,
-    itemMagnetRange: 150, // Range to start sucking items
+    itemMagnetRange: 180, // Increased magnet range
     colors: {
         player: '#44ddff',
         playerOutline: '#fff',
@@ -230,6 +236,8 @@ const CONFIG = {
         bulletPower: '#ffff00',
         enemy: '#ffbb00',
         enemyChaser: '#ff6666',
+        enemyGazer: '#aa00ff',
+        enemyBlocker: '#888888',
         platform: '#77dd77',
         platformSide: '#55aa55',
         hazard: '#aa44aa',
@@ -242,10 +250,9 @@ const CONFIG = {
     }
 };
 
-// --- CUTE AUDIO SYSTEM (Pop & Percussive) ---
+// --- AUDIO SYSTEM ---
 const AudioSys = {
     ctx: null,
-    bgmOsc: null,
     init: function() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -265,36 +272,10 @@ const AudioSys = {
         osc.start(t);
         osc.stop(t + duration);
     },
-    // Cute "Poko Poko" rotation sound - FIXED (Softer)
-    playSpin: function() {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        // Use Triangle wave for softer sound, low pass filtered manually by simple volume env
-        osc.type = 'triangle'; 
-        osc.frequency.setValueAtTime(300, t);
-        osc.frequency.exponentialRampToValueAtTime(150, t + 0.05);
-        
-        gain.gain.setValueAtTime(0.05, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.06);
-    },
-    playJump: function() {
-        // "Pyun!"
-        this.playTone('sine', 300, 800, 0.15, 0.1);
-    },
-    playPowerShoot: function() {
-        // "Zyun!"
-        this.playTone('square', 200, 600, 0.1, 0.05);
-    },
+    // No Spin Sound as requested
+    playJump: function() { this.playTone('sine', 300, 800, 0.15, 0.1); },
+    playPowerShoot: function() { this.playTone('square', 200, 600, 0.1, 0.05); },
     playLand: function() {
-        // "Boing!"
         if (!this.ctx) return;
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -311,20 +292,12 @@ const AudioSys = {
         osc.stop(t + 0.3);
     },
     playCombo: function(count) {
-        // Pitch rises with combo
         const pitch = 400 + (count * 100);
         this.playTone('square', pitch, pitch + 200, 0.1, 0.1);
     },
-    playPop: function() {
-        // "Pon!"
-        this.playTone('triangle', 600, 100, 0.1, 0.1);
-    },
-    playDamage: function() {
-        // "Bum..."
-        this.playTone('sawtooth', 150, 50, 0.3, 0.2);
-    },
+    playPop: function() { this.playTone('triangle', 600, 100, 0.1, 0.1); },
+    playDamage: function() { this.playTone('sawtooth', 150, 50, 0.3, 0.2); },
     playHeal: function() {
-        // "Pi-ro-lin!"
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
         this.playToneAt(now, 523.25, 'sine');
@@ -333,13 +306,15 @@ const AudioSys = {
         this.playToneAt(now + 0.15, 1046.50, 'sine');
     },
     playPowerUp: function() {
-        // Fanfare
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
         this.playToneAt(now, 440, 'triangle'); 
         this.playToneAt(now + 0.1, 554, 'triangle');
         this.playToneAt(now + 0.2, 659, 'triangle');
         this.playToneAt(now + 0.3, 880, 'triangle');
+    },
+    playShield: function() {
+        this.playTone('square', 800, 800, 0.2, 0.1);
     },
     playToneAt: function(t, freq, type) {
         const osc = this.ctx.createOscillator();
@@ -353,10 +328,7 @@ const AudioSys = {
         osc.start(t);
         osc.stop(t + 0.3);
     },
-    playGem: function() {
-        // "Kiran!"
-        this.playTone('sine', 1000, 1500, 0.1, 0.1);
-    }
+    playGem: function() { this.playTone('sine', 1000, 1500, 0.1, 0.1); }
 };
 
 // --- ENGINE ---
@@ -432,7 +404,6 @@ class Scarf {
         ctx.lineTo(this.nodes[this.length-1].x, this.nodes[this.length-1].y);
         
         if (isPower) {
-            // Rainbow Scarf
             const grad = ctx.createLinearGradient(this.nodes[0].x, this.nodes[0].y, this.nodes[this.length-1].x, this.nodes[this.length-1].y);
             grad.addColorStop(0, `hsl(${frameCount * 10}, 100%, 50%)`);
             grad.addColorStop(1, `hsl(${frameCount * 10 + 180}, 100%, 50%)`);
@@ -470,17 +441,24 @@ class Player {
         this.scaleY = 1;
         this.scarf = new Scarf(12);
         this.powerMode = 0;
-        this.spinSoundTimer = 0; // Timer for cute spin sound
+        this.shield = 0; // Shield hit points
+        this.boostMode = 0; // Boost timer
     }
 
     update() {
         if (this.dead) return;
 
-        if (!this.grounded) {
+        if (this.boostMode > 0) {
+            this.vy = -15; // Rocket speed
+            this.boostMode--;
+            this.powerMode = 2; // Keep power effects
+            this.invincible = 2;
+            if(frameCount % 3 === 0) particles.push(new Particle(this.x, this.y, Math.PI/2, 'puff'));
+        } else if (!this.grounded) {
             this.vy += CONFIG.gravity;
         }
 
-        const canShoot = input.active && !this.overheated;
+        const canShoot = input.active && !this.overheated && this.boostMode <= 0;
 
         if (canShoot) {
             this.heat += CONFIG.heatRate;
@@ -491,21 +469,9 @@ class Player {
                 setTimeout(() => { this.overheated = false; }, 1000);
             }
             if (frameCount % CONFIG.shootRate === 0) this.shoot();
-        } else {
-            // Idle / Spinning
+        } else if (this.boostMode <= 0) {
             this.angle += CONFIG.rotSpeed;
             this.heat = Math.max(0, this.heat - CONFIG.coolRate);
-            
-            // Cute spin sound rhythm (only when grounded or slow)
-            if (this.grounded) {
-                this.spinSoundTimer++;
-                if (this.spinSoundTimer > 15) { 
-                    AudioSys.playSpin();
-                    this.spinSoundTimer = 0;
-                    this.scaleY = 0.95; // Softer bounce
-                    this.scaleX = 1.05;
-                }
-            }
         }
 
         const fric = this.grounded ? CONFIG.groundFriction : CONFIG.friction;
@@ -524,7 +490,7 @@ class Player {
 
         this.scarf.update(this.x, this.y);
         if (this.invincible > 0) this.invincible--;
-        if (this.powerMode > 0) this.powerMode--;
+        if (this.powerMode > 0 && this.boostMode <= 0) this.powerMode--;
         
         this.updateUI();
     }
@@ -532,6 +498,7 @@ class Player {
     updateUI() {
         let hearts = "";
         for(let i=0; i<this.maxHp; i++) hearts += (i < this.hp) ? "❤" : "♡";
+        if(this.shield > 0) hearts += "🛡️";
         document.getElementById('hp-display').innerText = hearts;
         
         const fill = document.getElementById('heat-fill');
@@ -539,7 +506,7 @@ class Player {
         fill.style.backgroundColor = this.overheated ? '#ff3333' : '#44ddff';
         
         if (this.powerMode > 0) {
-            fill.style.backgroundColor = `hsl(${frameCount * 20}, 100%, 70%)`; // Pastel rainbow
+            fill.style.backgroundColor = `hsl(${frameCount * 20}, 100%, 70%)`;
         }
     }
 
@@ -593,20 +560,43 @@ class Player {
     activatePower() {
         this.powerMode = 600; 
         this.invincible = 600; 
-        floaters.push(new Floater(this.x, this.y - 40, "HYPER!", '#ffff00'));
-        
-        const pt = document.getElementById('power-text');
-        pt.style.display = 'block';
-        pt.style.animation = 'none';
-        pt.offsetHeight; 
-        pt.style.animation = 'popIn 1.5s ease-out forwards';
-        
+        this.showText("HYPER!");
         AudioSys.playPowerUp();
         hudBounce = 1.3;
     }
 
+    activateShield() {
+        this.shield = 1;
+        this.showText("SHIELD!");
+        AudioSys.playShield();
+    }
+
+    activateBoost() {
+        this.boostMode = 120; // 2 seconds
+        this.showText("BOOST!!");
+        AudioSys.playPowerUp();
+    }
+
+    showText(text) {
+        const pt = document.getElementById('power-text');
+        pt.innerText = text;
+        pt.style.display = 'block';
+        pt.classList.remove('pop-in');
+        void pt.offsetWidth; // Trigger reflow
+        pt.classList.add('pop-in');
+    }
+
     takeDamage() {
         if (this.invincible > 0 || this.dead) return;
+        
+        if (this.shield > 0) {
+            this.shield--;
+            this.invincible = 60;
+            AudioSys.playShield(); // Break sound
+            addShake(5);
+            return;
+        }
+
         this.hp--;
         this.invincible = 60;
         addShake(15);
@@ -650,35 +640,39 @@ class Player {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // HERO GOGGLES (Spidey Style)
+        // SPIDER EYES (Sharp & Big)
+        // Doflamingo style sunglasses / Spidey eyes
         ctx.fillStyle = '#222';
+        // Left Eye Frame
         ctx.beginPath();
-        // Left Eye Frame (Sharp)
-        ctx.moveTo(-10, -5);
-        ctx.lineTo(-4, 0);
-        ctx.lineTo(-14, 2);
-        ctx.quadraticCurveTo(-16, -8, -10, -5);
+        ctx.moveTo(-16, -12); // Top outer
+        ctx.lineTo(-4, 0);    // Inner
+        ctx.lineTo(-14, 8);   // Bottom outer
+        ctx.quadraticCurveTo(-22, -4, -16, -12);
+        ctx.fill();
+        
         // Right Eye Frame
-        ctx.moveTo(10, -5);
+        ctx.beginPath();
+        ctx.moveTo(16, -12);
         ctx.lineTo(4, 0);
-        ctx.lineTo(14, 2);
-        ctx.quadraticCurveTo(16, -8, 10, -5);
+        ctx.lineTo(14, 8);
+        ctx.quadraticCurveTo(22, -4, 16, -12);
         ctx.fill();
         
         ctx.fillStyle = '#fff';
         // Left Eye Lens
         ctx.beginPath();
-        ctx.moveTo(-10, -4);
-        ctx.lineTo(-5, 0);
-        ctx.lineTo(-13, 1);
-        ctx.quadraticCurveTo(-15, -7, -10, -4);
+        ctx.moveTo(-15, -10);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-13, 6);
+        ctx.quadraticCurveTo(-18, -4, -15, -10);
         ctx.fill();
         // Right Eye Lens
         ctx.beginPath();
-        ctx.moveTo(10, -4);
-        ctx.lineTo(5, 0);
-        ctx.lineTo(13, 1);
-        ctx.quadraticCurveTo(15, -7, 10, -4);
+        ctx.moveTo(15, -10);
+        ctx.lineTo(6, 0);
+        ctx.lineTo(13, 6);
+        ctx.quadraticCurveTo(18, -4, 15, -10);
         ctx.fill();
 
         // HELMET / ANTENNA
@@ -697,16 +691,34 @@ class Player {
         
         ctx.fillStyle = (this.powerMode > 0) ? '#ffff00' : '#ff3366';
         ctx.beginPath();
-        ctx.arc(0, -32, 5, 0, Math.PI*2); // Bigger ball
+        ctx.arc(0, -32, 5, 0, Math.PI*2); 
         ctx.fill();
 
         ctx.restore();
+
+        // Shield Overlay
+        if (this.shield > 0) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 10, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(100, 255, 255, ${0.5 + Math.sin(frameCount*0.2)*0.2})`;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
     }
 }
 
 class Platform {
-    constructor(x, y, w) {
+    constructor(x, y, w, moving) {
         this.x = x; this.y = y; this.w = w; this.h = 26;
+        this.moving = moving || false;
+        this.startX = x;
+        this.speed = 1 + Math.random();
+        this.range = 50 + Math.random() * 50;
+    }
+    update() {
+        if (this.moving) {
+            this.x = this.startX + Math.sin(frameCount * 0.02 * this.speed) * this.range;
+        }
     }
     draw(ctx) {
         ctx.fillStyle = CONFIG.colors.platformSide;
@@ -714,10 +726,15 @@ class Platform {
         ctx.fillStyle = CONFIG.colors.platform;
         ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, 12, 6); ctx.fill();
         
-        // Cute decoration
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.beginPath(); ctx.arc(this.x + 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(this.x + this.w - 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
+        // Decoration
+        if(this.moving) {
+            ctx.fillStyle = '#ffffaa'; // Moving indicator
+            ctx.beginPath(); ctx.arc(this.x + this.w/2, this.y + 15, 5, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); ctx.arc(this.x + 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x + this.w - 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
+        }
     }
 }
 
@@ -746,15 +763,14 @@ class Item {
     constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.type = type; 
+        this.type = type; // heart, power, shield, boost, gem
         this.vy = -4; 
         this.vx = (Math.random() - 0.5) * 4;
         this.life = 400; 
         this.angle = 0;
-        this.magnet = false; // Magnet mode
+        this.magnet = false; 
     }
     update(playerX, playerY) {
-        // Magnet Logic
         const dx = playerX - this.x;
         const dy = playerY - this.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
@@ -764,7 +780,7 @@ class Item {
         }
         
         if (this.magnet) {
-            const speed = 8;
+            const speed = 10; // Faster magnet
             this.x += (dx / dist) * speed;
             this.y += (dy / dist) * speed;
         } else {
@@ -783,23 +799,25 @@ class Item {
         ctx.translate(this.x, this.y);
         ctx.translate(0, Math.sin(this.life * 0.1) * 5);
         
+        ctx.textAlign = 'center';
+        ctx.font = '30px Arial';
+        
         if (this.type === 'heart') {
             ctx.fillStyle = '#ff3366';
-            ctx.font = '30px Arial';
-            ctx.textAlign = 'center';
             ctx.fillText("❤", 0, 10);
         } else if (this.type === 'power') {
             ctx.fillStyle = '#ffff00';
-            ctx.font = '30px Arial';
-            ctx.textAlign = 'center';
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ffff00';
             ctx.fillText("⚡", 0, 10);
-            ctx.shadowBlur = 0;
+        } else if (this.type === 'shield') {
+            ctx.fillStyle = '#00ffff';
+            ctx.fillText("🛡️", 0, 10);
+        } else if (this.type === 'boost') {
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillText("🚀", 0, 10);
         } else {
             ctx.fillStyle = '#00ffff';
             ctx.rotate(this.angle);
-            ctx.fillRect(-8, -8, 16, 16); // Gem
+            ctx.fillRect(-8, -8, 16, 16);
         }
         ctx.restore();
     }
@@ -834,10 +852,10 @@ class Enemy {
     constructor(y, type) {
         this.x = Math.random() * (width - 60) + 30;
         this.y = y;
-        this.type = type; 
+        this.type = type; // 0:Normal, 1:Chaser, 2:Zigzag, 3:Gazer, 4:Blocker
         this.radius = 20;
         this.hp = 1;
-        if (type === 1) this.hp = 2;
+        if (type === 1 || type === 4) this.hp = 3;
         this.angle = 0;
         this.startX = this.x;
         this.startY = this.y;
@@ -846,10 +864,10 @@ class Enemy {
     }
     update(playerX, playerY) {
         this.time++;
-        if (this.type === 0) {
+        if (this.type === 0) { // Normal
             this.angle += 0.05;
             this.x = this.startX + Math.sin(this.angle * 2 + this.offset) * 60;
-        } else if (this.type === 1) {
+        } else if (this.type === 1) { // Chaser
             const dx = playerX - this.x;
             const dy = playerY - this.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
@@ -858,48 +876,66 @@ class Enemy {
                 this.y += (dy / dist) * 1.5;
             }
             this.angle += 0.1;
-        } else if (this.type === 2) {
+        } else if (this.type === 2) { // Zigzag
             this.x = this.startX + Math.sin(this.time * 0.1) * 120;
             this.y = this.startY + Math.cos(this.time * 0.05) * 30;
             this.angle -= 0.1;
+        } else if (this.type === 3) { // Gazer (Rotates to look at player)
+            this.x = this.startX + Math.sin(this.time * 0.02) * 80;
+            this.angle = Math.atan2(playerY - this.y, playerX - this.x);
+        } else if (this.type === 4) { // Blocker (Horizontal Patrol)
+            this.x = this.startX + Math.sin(this.time * 0.03) * 150;
+            this.angle = 0;
         }
     }
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.fillStyle = (this.type === 1) ? CONFIG.colors.enemyChaser : CONFIG.colors.enemy;
         
-        // Wobble scale
-        const scale = 1.0 + Math.sin(this.time * 0.2) * 0.1;
-        ctx.scale(scale, scale);
-
-        ctx.beginPath();
-        const spikes = (this.type === 1) ? 12 : 8;
-        // Rounded spikes (Cute!)
-        for(let i=0; i<spikes; i++) {
-            let rot = this.angle + (i * Math.PI * 2) / spikes;
-            let r = this.radius;
-            let rIn = this.radius * 0.7;
-            ctx.lineTo(Math.cos(rot)*r, Math.sin(rot)*r);
-            // Mid point
-            let rotMid = rot + (Math.PI/spikes);
-            ctx.lineTo(Math.cos(rotMid)*rIn, Math.sin(rotMid)*rIn);
+        if (this.type === 3) { // Gazer
+            ctx.rotate(this.angle);
+            ctx.fillStyle = CONFIG.colors.enemyGazer;
+            ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill();
+            // Eye
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(10, 0, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(12, 0, 3, 0, Math.PI*2); ctx.fill();
+        } else if (this.type === 4) { // Blocker
+            ctx.fillStyle = CONFIG.colors.enemyBlocker;
+            ctx.fillRect(-20, -20, 40, 40);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-20, -20, 40, 40);
+            // Face
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-10, -5, 20, 10);
+        } else { // Others
+            ctx.fillStyle = (this.type === 1) ? CONFIG.colors.enemyChaser : CONFIG.colors.enemy;
+            const scale = 1.0 + Math.sin(this.time * 0.2) * 0.1;
+            ctx.scale(scale, scale);
+            ctx.beginPath();
+            const spikes = (this.type === 1) ? 12 : 8;
+            for(let i=0; i<spikes; i++) {
+                let rot = this.angle + (i * Math.PI * 2) / spikes;
+                let r = this.radius;
+                let rIn = this.radius * 0.7;
+                ctx.lineTo(Math.cos(rot)*r, Math.sin(rot)*r);
+                let rotMid = rot + (Math.PI/spikes);
+                ctx.lineTo(Math.cos(rotMid)*rIn, Math.sin(rotMid)*rIn);
+            }
+            ctx.closePath();
+            ctx.fill();
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(-6, -6, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6, -6, 6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#000';
+            const eyeX = Math.cos(this.time * 0.1) * 2;
+            const eyeY = Math.sin(this.time * 0.1) * 2;
+            ctx.beginPath(); ctx.arc(-6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
         }
-        ctx.closePath();
-        ctx.fill();
-        
-        // Eyes (Googly)
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(-6, -6, 6, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(6, -6, 6, 0, Math.PI*2); ctx.fill();
-        
-        ctx.fillStyle = '#000';
-        // Eye pupils moving
-        const eyeX = Math.cos(this.time * 0.1) * 2;
-        const eyeY = Math.sin(this.time * 0.1) * 2;
-        ctx.beginPath(); ctx.arc(-6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
-
         ctx.restore();
     }
 }
@@ -980,11 +1016,15 @@ function generateLevel() {
              hazards.push(new HazardWall(x, levelGenY, 100, 30));
         } else if (rand < hazardChance + enemyChance) {
              let type = 0;
-             if (currentHeight > 3000 && Math.random() > 0.7) type = 1; 
-             if (currentHeight > 5000 && Math.random() > 0.5) type = 2; 
+             if (currentHeight > 3000 && Math.random() > 0.7) type = 1; // Chaser
+             if (currentHeight > 5000 && Math.random() > 0.5) type = 2; // Zigzag
+             if (currentHeight > 7000 && Math.random() > 0.6) type = 3; // Gazer
+             if (currentHeight > 2000 && Math.random() > 0.8) type = 4; // Blocker
              enemies.push(new Enemy(levelGenY, type));
         } else {
-             platforms.push(new Platform(x, levelGenY, w));
+             // Moving platform chance
+             const isMoving = (currentHeight > 4000 && Math.random() > 0.5);
+             platforms.push(new Platform(x, levelGenY, w, isMoving));
         }
     }
     
@@ -1031,7 +1071,6 @@ function gameOver() {
     document.querySelector('#start-screen h1').innerText = "GAME OVER";
     document.querySelector('#start-screen p').innerHTML = 
         `REACHED: ${Math.floor(maxAltitude)}m<br>BEST: ${highScore}m`;
-    // Change button text
     document.querySelector('.start-btn').innerText = "TRY AGAIN";
 }
 
@@ -1041,7 +1080,6 @@ function update() {
     hudBounce += (1.0 - hudBounce) * 0.1;
     document.getElementById('hud-top').style.transform = `scale(${hudBounce})`;
 
-    // Combo Reset
     if (comboTimer > 0) comboTimer--;
     else comboCount = 0;
 
@@ -1069,6 +1107,9 @@ function update() {
 
     player.grounded = false;
     platforms.forEach(p => {
+        p.update(); // Update platform movement
+        
+        // One-Way Collision
         if (player.vy >= 0 &&
             player.y + player.radius >= p.y &&
             player.y - player.radius < p.y + p.h &&
@@ -1077,6 +1118,11 @@ function update() {
              if ((player.y + player.radius) - p.y < 30) { 
                  player.y = p.y - player.radius;
                  player.land();
+                 // Move player with platform
+                 if(p.moving) {
+                     // Approximate movement
+                     player.x += Math.sin(frameCount * 0.02 * p.speed) * p.range - Math.sin((frameCount-1) * 0.02 * p.speed) * p.range;
+                 }
              }
         }
     });
@@ -1099,7 +1145,14 @@ function update() {
             const hitRadius = e.radius + (b.isPower ? 20 : 10);
             
             if (dist < hitRadius) {
-                e.hp -= (b.isPower ? 10 : 1); 
+                // Damage calculation
+                let dmg = 1;
+                if(b.isPower) dmg = 10;
+                // Blocker logic: Only damage from back/side (simple check: player below enemy?)
+                if(e.type === 4 && player.y < e.y) dmg = 0; // Shielded from top (actually let's make it shielded from front?)
+                // Actually Blocker: hard shell. Let's make it simple: High HP
+                
+                e.hp -= dmg;
                 if (!b.isPower) bullets.splice(i,1); 
                 
                 AudioSys.playPop();
@@ -1108,18 +1161,23 @@ function update() {
                     hitStopFrames = b.isPower ? 6 : 3;
                     if(b.isPower) addShake(5);
                     
-                    // COMBO SYSTEM
                     comboCount++;
-                    comboTimer = 120; // 2 seconds to chain
+                    comboTimer = 120;
                     AudioSys.playCombo(Math.min(comboCount, 10));
                     floaters.push(new Floater(e.x, e.y, `${comboCount} HIT!`, '#ffaa00'));
                     
                     for(let k=0; k<5; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
                     
                     const rand = Math.random();
-                    if (rand < 0.25) items.push(new Item(e.x, e.y, 'heart'));
-                    else if (rand < 0.45) items.push(new Item(e.x, e.y, 'gem'));
-                    else if (rand < 0.50) items.push(new Item(e.x, e.y, 'power'));
+                    // Discovery: More items
+                    if (rand < 0.20) items.push(new Item(e.x, e.y, 'heart'));
+                    else if (rand < 0.35) items.push(new Item(e.x, e.y, 'shield'));
+                    else if (rand < 0.50) items.push(new Item(e.x, e.y, 'boost'));
+                    else if (rand < 0.60) items.push(new Item(e.x, e.y, 'power'));
+                    else items.push(new Item(e.x, e.y, 'gem'));
+                } else {
+                    // Hit but not dead (Blocker sound)
+                    if(e.type === 4) AudioSys.playDamage(); // Metal sound reuse
                 }
                 break;
             }
@@ -1133,6 +1191,8 @@ function update() {
         if (Math.hypot(player.x - it.x, player.y - it.y) < player.radius + 15) {
             if (it.type === 'heart') player.heal();
             else if (it.type === 'power') player.activatePower();
+            else if (it.type === 'shield') player.activateShield();
+            else if (it.type === 'boost') player.activateBoost();
             else {
                 floaters.push(new Floater(it.x, it.y - 20, "NICE!", '#00ffff'));
                 AudioSys.playGem();
