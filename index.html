@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Recoil Jet - Sky Pilot Final v2</title>
+    <title>Recoil Jet - Pop Star Edition</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #222;
-            font-family: 'Verdana', sans-serif;
+            background-color: #2b2b40; /* Slightly purple dark bg */
+            font-family: 'Fredoka One', cursive, sans-serif; /* Cute rounded font */
             touch-action: none;
             user-select: none;
         }
@@ -35,38 +37,43 @@
             justify-content: space-between;
             align-items: flex-start;
             transform-origin: top center;
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         #score-group {
             text-align: left;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            border: 3px solid rgba(255, 255, 255, 0.5);
         }
         #altitude-display {
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            text-shadow: 2px 2px 0 #000;
+            color: #ffffff;
+            font-size: 32px;
+            text-shadow: 2px 2px 0 #444;
+            letter-spacing: 1px;
         }
         #high-score-display {
-            color: #ffff00;
+            color: #ffee00;
             font-size: 16px;
-            font-weight: bold;
-            text-shadow: 1px 1px 0 #000;
+            text-shadow: 1px 1px 0 #444;
         }
         #hp-display {
-            font-size: 28px;
-            color: #ff99cc;
-            text-shadow: 2px 2px 0 #000;
-            letter-spacing: 2px;
+            font-size: 32px;
+            color: #ff88bb;
+            text-shadow: 2px 2px 0 #444;
+            letter-spacing: 5px;
         }
         #heat-container {
             position: relative;
-            width: 20px;
-            height: 100px;
-            border: 3px solid #fff;
-            background: rgba(0,0,0,0.5);
+            width: 24px;
+            height: 120px;
+            border: 4px solid #fff;
+            background: rgba(0,0,0,0.3);
             margin-top: 10px;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
         }
         #heat-fill {
             position: absolute;
@@ -79,16 +86,19 @@
         }
         #magma-warning {
             position: absolute;
-            bottom: 40px;
+            bottom: 60px;
             left: 0;
             width: 100%;
             text-align: center;
-            color: #ff2200;
-            font-size: 28px;
-            font-weight: bold;
-            text-shadow: 0 0 10px #ff0000;
+            color: #ff4444;
+            font-size: 32px;
+            text-shadow: 2px 2px 0 #fff;
             display: none;
-            animation: blinker 0.2s linear infinite;
+            animation: bounce 0.5s infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
         }
         #power-text {
             position: absolute;
@@ -96,17 +106,16 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: #ffff00;
-            font-size: 40px;
-            font-weight: bold;
-            text-shadow: 0 0 20px #ffaa00;
+            font-size: 50px;
+            text-shadow: 4px 4px 0 #ff00aa;
             display: none;
             pointer-events: none;
-            animation: zoomOut 0.5s ease-out forwards;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
-        @keyframes zoomOut {
-            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.0); opacity: 0; }
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            70% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
         }
         #start-screen {
             position: absolute;
@@ -114,7 +123,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(43, 43, 64, 0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -124,23 +133,40 @@
         }
         h1 {
             color: #44ddff;
-            font-size: 36px;
+            font-size: 48px;
             margin: 0 0 10px 0;
-            text-shadow: 3px 3px 0 #fff;
+            text-shadow: 4px 4px 0 #2266aa;
             text-align: center;
+            line-height: 1.1;
         }
         p {
             color: #fff;
-            font-size: 16px;
-            line-height: 1.6;
+            font-size: 18px;
+            line-height: 1.8;
             text-align: center;
             max-width: 400px;
-            background: rgba(0,0,0,0.6);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
+            border-radius: 20px;
+            border: 2px dashed rgba(255,255,255,0.3);
         }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
+        .start-btn {
+            margin-top: 30px;
+            color: #fff;
+            background-color: #ff3366;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 6px 0 #aa2244;
+            transition: transform 0.1s, box-shadow 0.1s;
+            cursor: pointer;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+        }
+        .start-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #aa2244;
+        }
     </style>
 </head>
 <body>
@@ -158,37 +184,33 @@
                 </div>
             </div>
         </div>
-        <div id="magma-warning">⚠ MAGMA RISING ⚠</div>
+        <div id="magma-warning">🔥 RUN AWAY! 🔥</div>
         <div id="power-text">HYPER JET!</div>
     </div>
 
     <div id="start-screen">
-        <h1>RECOIL JET<br><span style="font-size:0.6em; color:white;">Sky Pilot v2</span></h1>
+        <h1>RECOIL JET<br><span style="font-size:0.5em; color:#ff99cc;">Pop Star Edition</span></h1>
         <p>
             TAP & HOLD: <b>Shoot & Fly</b><br>
-            RELEASE: <b>Spin Fast!</b><br><br>
-            Look at the <b>Helmet Antenna</b> to aim.<br>
-            Get <b>⚡</b> to become INVINCIBLE & FAST!<br>
-            Land on islands to rest.
+            RELEASE: <b>Spin & Aim</b><br><br>
+            Defeat enemies for <b>HEARTS</b>!<br>
+            Grab <b>⚡</b> for HYPER MODE!<br>
+            Listen to the cute sounds 🎵
         </p>
-        <p class="blink" style="margin-top: 20px; color: #44ddff; font-weight: bold; font-size: 20px;">[ TAP TO START ]</p>
+        <div class="start-btn" onclick="startGame()">LET'S GO!</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
 /**
- * RECOIL JET - SKY PILOT EDITION (FINAL v2)
- * Updates:
- * - Faster Spin (0.08)
- * - Helmet Visuals (Orientation indicator)
- * - Cute "Boing" Land Sound
- * - Power Item (Hyper Mode: Strong Recoil + Big Bullets)
+ * RECOIL JET - POP STAR EDITION
+ * Focus: Cute Audio, Pop Visuals, Fun Feedback
  */
 
 const CONFIG = {
     gravity: 0.07,
-    rotSpeed: 0.08,         // FASTER SPIN (Requested)
+    rotSpeed: 0.08,
     recoilForce: 2.1,
     shootRate: 6,
     heatRate: 2.5,
@@ -205,12 +227,13 @@ const CONFIG = {
         playerOutline: '#fff',
         bullet: '#fff',
         bulletPower: '#ffff00',
-        enemy: '#ffcc00',
-        enemyChaser: '#ff5555',
-        platform: '#66cc66',
-        hazard: '#cc33ff',
-        bg: '#222',
-        magma: '#ff4400',
+        enemy: '#ffbb00',
+        enemyChaser: '#ff6666',
+        platform: '#77dd77',
+        platformSide: '#55aa55',
+        hazard: '#aa44aa',
+        bg: '#2b2b40',
+        magma: '#ff5544',
         guideShoot: 'rgba(255, 255, 255, 0.2)',
         guideMove: 'rgba(68, 221, 255, 0.5)', 
         marker: '#ffff00',
@@ -218,9 +241,10 @@ const CONFIG = {
     }
 };
 
-// --- CUTE AUDIO SYSTEM ---
+// --- CUTE AUDIO SYSTEM (Pop & Percussive) ---
 const AudioSys = {
     ctx: null,
+    bgmOsc: null,
     init: function() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -234,44 +258,65 @@ const AudioSys = {
         osc.frequency.setValueAtTime(freqStart, t);
         osc.frequency.linearRampToValueAtTime(freqEnd, t + duration);
         gain.gain.setValueAtTime(vol, t);
-        gain.gain.linearRampToValueAtTime(0, t + duration);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
         osc.stop(t + duration);
     },
-    playJump: function() {
-        this.playTone('sine', 250, 600, 0.15, 0.1);
-    },
-    playPowerShoot: function() {
-        // Heavier, laser-like sound
-        this.playTone('sawtooth', 100, 400, 0.15, 0.1);
-        this.playTone('square', 300, 100, 0.1, 0.05);
-    },
-    playLand: function() {
-        // CUTE BOING (Sine wave with quick pitch up-down-up)
+    // Cute "Poko Poko" rotation sound
+    playSpin: function() {
+        // Woodblock-like sound
         if (!this.ctx) return;
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(200, t);
-        osc.frequency.linearRampToValueAtTime(300, t + 0.1);
-        osc.frequency.linearRampToValueAtTime(200, t + 0.2);
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
+        gain.gain.setValueAtTime(0.05, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.2);
+        osc.stop(t + 0.05);
     },
-    playPop: function() {
-        this.playTone('square', 400, 100, 0.1, 0.1);
+    playJump: function() {
+        // "Pyun!"
+        this.playTone('sine', 300, 800, 0.15, 0.1);
+    },
+    playPowerShoot: function() {
+        // "Zyun!"
+        this.playTone('square', 200, 600, 0.1, 0.05);
+    },
+    playLand: function() {
+        // "Boing!"
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.linearRampToValueAtTime(250, t + 0.1);
+        osc.frequency.linearRampToValueAtTime(150, t + 0.2);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.3);
+    },
+    playCombo: function(count) {
+        // Pitch rises with combo
+        const pitch = 400 + (count * 100);
+        this.playTone('square', pitch, pitch + 200, 0.1, 0.1);
     },
     playDamage: function() {
+        // "Bum..."
         this.playTone('sawtooth', 150, 50, 0.3, 0.2);
     },
     playHeal: function() {
+        // "Pi-ro-lin!"
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
         this.playToneAt(now, 523.25, 'sine');
@@ -280,13 +325,13 @@ const AudioSys = {
         this.playToneAt(now + 0.15, 1046.50, 'sine');
     },
     playPowerUp: function() {
-        // Fanfare-ish
+        // Fanfare
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
-        this.playToneAt(now, 440, 'square'); 
-        this.playToneAt(now + 0.1, 554, 'square');
-        this.playToneAt(now + 0.2, 659, 'square');
-        this.playToneAt(now + 0.3, 880, 'square');
+        this.playToneAt(now, 440, 'triangle'); 
+        this.playToneAt(now + 0.1, 554, 'triangle');
+        this.playToneAt(now + 0.2, 659, 'triangle');
+        this.playToneAt(now + 0.3, 880, 'triangle');
     },
     playToneAt: function(t, freq, type) {
         const osc = this.ctx.createOscillator();
@@ -294,14 +339,15 @@ const AudioSys = {
         osc.type = type;
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.1, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.2);
+        osc.stop(t + 0.3);
     },
     playGem: function() {
-        this.playTone('sine', 880, 1200, 0.1, 0.1);
+        // "Kiran!"
+        this.playTone('sine', 1000, 1500, 0.1, 0.1);
     }
 };
 
@@ -319,6 +365,8 @@ let frameCount = 0;
 let hitStopFrames = 0;
 let shakeIntensity = 0;
 let floaters = [];
+let comboCount = 0;
+let comboTimer = 0;
 let hudBounce = 1.0;
 
 const input = { active: false };
@@ -329,7 +377,7 @@ function handleInputStart(e) {
     if (e.type === 'keydown' && e.code !== 'Space') return;
     if (e.type === 'touchstart') e.preventDefault();
     input.active = true;
-    if (gameState === 'START' || gameState === 'GAMEOVER') startGame();
+    if (gameState === 'GAMEOVER') startGame();
 }
 function handleInputEnd() { input.active = false; }
 startEvents.forEach(evt => window.addEventListener(evt, handleInputStart, { passive: false }));
@@ -365,7 +413,7 @@ class Scarf {
             curr.y += 0.5;
         }
     }
-    draw(ctx) {
+    draw(ctx, isPower) {
         ctx.beginPath();
         ctx.moveTo(this.nodes[0].x, this.nodes[0].y);
         for (let i = 1; i < this.length; i++) {
@@ -374,8 +422,19 @@ class Scarf {
              ctx.quadraticCurveTo(this.nodes[i - 1].x, this.nodes[i - 1].y, xc, yc);
         }
         ctx.lineTo(this.nodes[this.length-1].x, this.nodes[this.length-1].y);
-        ctx.strokeStyle = CONFIG.colors.scarf;
-        ctx.lineWidth = 6;
+        
+        if (isPower) {
+            // Rainbow Scarf
+            const grad = ctx.createLinearGradient(this.nodes[0].x, this.nodes[0].y, this.nodes[this.length-1].x, this.nodes[this.length-1].y);
+            grad.addColorStop(0, `hsl(${frameCount * 10}, 100%, 50%)`);
+            grad.addColorStop(1, `hsl(${frameCount * 10 + 180}, 100%, 50%)`);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 8;
+        } else {
+            ctx.strokeStyle = CONFIG.colors.scarf;
+            ctx.lineWidth = 6;
+        }
+        
         ctx.lineCap = 'round';
         ctx.stroke();
         ctx.strokeStyle = 'white';
@@ -401,10 +460,9 @@ class Player {
         this.dead = false;
         this.scaleX = 1;
         this.scaleY = 1;
-        this.scarf = new Scarf(12); // Longer scarf
-        
-        // Power Up System
-        this.powerMode = 0; // Frames remaining
+        this.scarf = new Scarf(12);
+        this.powerMode = 0;
+        this.spinSoundTimer = 0; // Timer for cute spin sound
     }
 
     update() {
@@ -426,8 +484,20 @@ class Player {
             }
             if (frameCount % CONFIG.shootRate === 0) this.shoot();
         } else {
+            // Idle / Spinning
             this.angle += CONFIG.rotSpeed;
             this.heat = Math.max(0, this.heat - CONFIG.coolRate);
+            
+            // Cute spin sound rhythm (only when grounded or slow)
+            if (this.grounded) {
+                this.spinSoundTimer++;
+                if (this.spinSoundTimer > 15) { // "Poko... Poko..."
+                    AudioSys.playSpin();
+                    this.spinSoundTimer = 0;
+                    this.scaleY = 0.9; // Little bounce
+                    this.scaleX = 1.1;
+                }
+            }
         }
 
         const fric = this.grounded ? CONFIG.groundFriction : CONFIG.friction;
@@ -460,21 +530,17 @@ class Player {
         fill.style.height = `${(this.heat / CONFIG.maxHeat) * 100}%`;
         fill.style.backgroundColor = this.overheated ? '#ff3333' : '#44ddff';
         
-        // Power Mode Visual
         if (this.powerMode > 0) {
-            fill.style.backgroundColor = `hsl(${frameCount * 20}, 100%, 50%)`;
+            fill.style.backgroundColor = `hsl(${frameCount * 20}, 100%, 70%)`; // Pastel rainbow
         }
     }
 
     shoot() {
         const isPower = this.powerMode > 0;
-        
         const muzzleX = this.x + Math.cos(this.angle) * (this.radius + 8);
         const muzzleY = this.y + Math.sin(this.angle) * (this.radius + 8);
-        
         bullets.push(new Bullet(muzzleX, muzzleY, this.angle, isPower));
         
-        // Recoil boost if Power Mode
         const boost = isPower ? 1.5 : 1.0;
         const force = CONFIG.recoilForce * boost;
         
@@ -513,16 +579,15 @@ class Player {
     }
     
     activatePower() {
-        this.powerMode = 600; // 10 seconds
-        this.invincible = 600; // Invincible during power!
+        this.powerMode = 600; 
+        this.invincible = 600; 
         floaters.push(new Floater(this.x, this.y - 40, "HYPER!", '#ffff00'));
         
         const pt = document.getElementById('power-text');
         pt.style.display = 'block';
-        // Reset animation
         pt.style.animation = 'none';
-        pt.offsetHeight; /* trigger reflow */
-        pt.style.animation = 'zoomOut 1.5s ease-out forwards';
+        pt.offsetHeight; 
+        pt.style.animation = 'popIn 1.5s ease-out forwards';
         
         AudioSys.playPowerUp();
         hudBounce = 1.3;
@@ -545,9 +610,9 @@ class Player {
 
     draw(ctx) {
         if (this.dead) return;
-        if (this.invincible > 0 && this.powerMode <= 0 && Math.floor(frameCount / 4) % 2 === 0) return; // Blink only if not power
+        if (this.invincible > 0 && this.powerMode <= 0 && Math.floor(frameCount / 4) % 2 === 0) return;
 
-        this.scarf.draw(ctx);
+        this.scarf.draw(ctx, this.powerMode > 0);
 
         // Guides
         ctx.beginPath();
@@ -573,37 +638,35 @@ class Player {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Goggles
+        // Goggles (Cute Eyes)
         ctx.fillStyle = '#333';
         ctx.fillRect(-18, -4, 36, 6);
         ctx.fillStyle = '#ffaa00';
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(-7, -1, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(7, -1, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-7, -1, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(7, -1, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
         ctx.fillStyle = 'white';
-        ctx.beginPath(); ctx.arc(-9, -3, 2, 0, Math.PI*2); ctx.arc(5, -3, 2, 0, Math.PI*2); ctx.fill();
+        // Eye shine
+        ctx.beginPath(); ctx.arc(-9, -3, 3, 0, Math.PI*2); ctx.arc(5, -3, 3, 0, Math.PI*2); ctx.fill();
 
-        // HELMET / ANTENNA (To show "Up")
-        // Draw on top of head (which is -y in this rotated space)
-        // Helmet rim
+        // HELMET / ANTENNA
         ctx.beginPath();
-        ctx.arc(0, -2, 19, Math.PI, 0); // Upper half
+        ctx.arc(0, -2, 19, Math.PI, 0); 
         ctx.lineWidth = 3;
         ctx.strokeStyle = '#fff';
         ctx.stroke();
         
-        // Antenna
         ctx.beginPath();
         ctx.moveTo(0, -19);
-        ctx.lineTo(0, -30);
+        ctx.lineTo(0, -32);
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#ccc';
         ctx.stroke();
-        // Antenna Ball
-        ctx.fillStyle = (this.powerMode > 0) ? '#ffff00' : '#ff0000';
+        
+        ctx.fillStyle = (this.powerMode > 0) ? '#ffff00' : '#ff3366';
         ctx.beginPath();
-        ctx.arc(0, -30, 4, 0, Math.PI*2);
+        ctx.arc(0, -32, 5, 0, Math.PI*2); // Bigger ball
         ctx.fill();
 
         ctx.restore();
@@ -612,15 +675,18 @@ class Player {
 
 class Platform {
     constructor(x, y, w) {
-        this.x = x; this.y = y; this.w = w; this.h = 24;
+        this.x = x; this.y = y; this.w = w; this.h = 26;
     }
     draw(ctx) {
-        ctx.fillStyle = CONFIG.colors.platform;
+        ctx.fillStyle = CONFIG.colors.platformSide;
         ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, this.h, 12); ctx.fill();
-        ctx.fillStyle = '#ccffcc';
-        ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, 8, 4); ctx.fill();
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath(); ctx.roundRect(this.x+5, this.y+this.h-8, this.w-10, 4, 2); ctx.fill();
+        ctx.fillStyle = CONFIG.colors.platform;
+        ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, 12, 6); ctx.fill();
+        
+        // Cute decoration
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath(); ctx.arc(this.x + 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x + this.w - 15, this.y + 15, 3, 0, Math.PI*2); ctx.fill();
     }
 }
 
@@ -633,15 +699,15 @@ class HazardWall {
         ctx.fillRect(this.x, this.y, this.w, this.h);
         if (Math.floor(frameCount/5)%2 === 0) {
             ctx.strokeStyle = '#ff00ff';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.strokeRect(this.x+2, this.y+2, this.w-4, this.h-4);
         }
         ctx.strokeStyle = '#aa00aa';
         ctx.strokeRect(this.x, this.y, this.w, this.h);
         ctx.fillStyle = '#ff00ff';
         ctx.textAlign = 'center';
-        ctx.font = '20px Arial';
-        ctx.fillText("⚡", this.x + this.w/2, this.y + this.h/2 + 7);
+        ctx.font = '24px Arial';
+        ctx.fillText("⚡", this.x + this.w/2, this.y + this.h/2 + 8);
     }
 }
 
@@ -649,7 +715,7 @@ class Item {
     constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.type = type; // 'heart' or 'gem' or 'power'
+        this.type = type; 
         this.vy = -4; 
         this.vx = (Math.random() - 0.5) * 4;
         this.life = 400; 
@@ -667,25 +733,25 @@ class Item {
         if (this.life < 60 && Math.floor(this.life/4)%2===0) return;
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.translate(0, Math.sin(this.life * 0.1) * 3);
+        ctx.translate(0, Math.sin(this.life * 0.1) * 5);
         
         if (this.type === 'heart') {
             ctx.fillStyle = '#ff3366';
-            ctx.font = '24px Arial';
+            ctx.font = '30px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText("❤", 0, 8);
+            ctx.fillText("❤", 0, 10);
         } else if (this.type === 'power') {
             ctx.fillStyle = '#ffff00';
-            ctx.font = '24px Arial';
+            ctx.font = '30px Arial';
             ctx.textAlign = 'center';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = '#ffff00';
-            ctx.fillText("⚡", 0, 8);
+            ctx.fillText("⚡", 0, 10);
             ctx.shadowBlur = 0;
         } else {
             ctx.fillStyle = '#00ffff';
             ctx.rotate(this.angle);
-            ctx.fillRect(-6, -6, 12, 12);
+            ctx.fillRect(-8, -8, 16, 16); // Gem
         }
         ctx.restore();
     }
@@ -698,7 +764,7 @@ class Bullet {
         this.vy = Math.sin(angle) * (isPower ? 20 : 14);
         this.life = isPower ? 60 : 40;
         this.isPower = isPower;
-        this.radius = isPower ? 12 : 6;
+        this.radius = isPower ? 14 : 7;
     }
     update() { this.x += this.vx; this.y += this.vy; this.life--; }
     draw(ctx) {
@@ -707,7 +773,7 @@ class Bullet {
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); 
         ctx.fill();
         if (this.isPower) {
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = '#ffff00';
             ctx.strokeStyle = '#fff';
             ctx.stroke();
@@ -721,7 +787,7 @@ class Enemy {
         this.x = Math.random() * (width - 60) + 30;
         this.y = y;
         this.type = type; 
-        this.radius = 16;
+        this.radius = 20;
         this.hp = 1;
         if (type === 1) this.hp = 2;
         this.angle = 0;
@@ -739,7 +805,7 @@ class Enemy {
             const dx = playerX - this.x;
             const dy = playerY - this.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 300) { 
+            if (dist < 350) { 
                 this.x += (dx / dist) * 1.5;
                 this.y += (dy / dist) * 1.5;
             }
@@ -754,17 +820,38 @@ class Enemy {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.fillStyle = (this.type === 1) ? CONFIG.colors.enemyChaser : CONFIG.colors.enemy;
+        
+        // Wobble scale
+        const scale = 1.0 + Math.sin(this.time * 0.2) * 0.1;
+        ctx.scale(scale, scale);
+
         ctx.beginPath();
         const spikes = (this.type === 1) ? 12 : 8;
+        // Rounded spikes (Cute!)
         for(let i=0; i<spikes; i++) {
             let rot = this.angle + (i * Math.PI * 2) / spikes;
-            let r = (i%2===0) ? this.radius : this.radius * 0.6;
+            let r = this.radius;
+            let rIn = this.radius * 0.7;
             ctx.lineTo(Math.cos(rot)*r, Math.sin(rot)*r);
+            // Mid point
+            let rotMid = rot + (Math.PI/spikes);
+            ctx.lineTo(Math.cos(rotMid)*rIn, Math.sin(rotMid)*rIn);
         }
         ctx.closePath();
         ctx.fill();
+        
+        // Eyes (Googly)
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-6, -6, 6, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(6, -6, 6, 0, Math.PI*2); ctx.fill();
+        
         ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+        // Eye pupils moving
+        const eyeX = Math.cos(this.time * 0.1) * 2;
+        const eyeY = Math.sin(this.time * 0.1) * 2;
+        ctx.beginPath(); ctx.arc(-6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(6 + eyeX, -6 + eyeY, 2, 0, Math.PI*2); ctx.fill();
+
         ctx.restore();
     }
 }
@@ -775,12 +862,13 @@ class Particle {
         const speed = (type === 'puff') ? 2 : 5;
         this.vx = (Math.random()-0.5)*speed; this.vy = (Math.random()-0.5)*speed;
         this.decay = (type === 'puff') ? 0.08 : 0.05;
+        this.color = (type === 'puff') ? '#fff' : CONFIG.colors.enemy;
     }
     update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
     draw(ctx) {
         ctx.globalAlpha = this.life;
-        ctx.fillStyle = (this.type === 'puff') ? '#fff' : CONFIG.colors.enemy;
-        ctx.beginPath(); ctx.arc(this.x, this.y, (this.type === 'puff') ? 8 : 4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, (this.type === 'puff') ? 8 : 5, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
     }
 }
@@ -788,13 +876,16 @@ class Particle {
 class Floater {
     constructor(x, y, text, color) {
         this.x = x; this.y = y; this.text = text; this.life = 50; this.color = color || 'white';
+        this.vy = -2;
     }
-    update() { this.y -= 1; this.life--; }
+    update() { this.y += this.vy; this.life--; }
     draw(ctx) {
         ctx.fillStyle = this.color;
         ctx.globalAlpha = this.life/50;
-        ctx.font = 'bold 20px Verdana';
-        ctx.textAlign = 'center';
+        ctx.font = 'bold 24px Fredoka One';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(this.text, this.x, this.y);
         ctx.fillText(this.text, this.x, this.y);
         ctx.globalAlpha = 1;
     }
@@ -873,6 +964,7 @@ function startGame() {
     cameraY = 0;
     levelGenY = -200;
     hudBounce = 1.0;
+    comboCount = 0;
     
     platforms.push(new Platform(width/2 - 100, height/2 + 100, 200));
 
@@ -891,6 +983,8 @@ function gameOver() {
     document.querySelector('#start-screen h1').innerText = "GAME OVER";
     document.querySelector('#start-screen p').innerHTML = 
         `REACHED: ${Math.floor(maxAltitude)}m<br>BEST: ${highScore}m`;
+    // Change button text
+    document.querySelector('.start-btn').innerText = "TRY AGAIN";
 }
 
 function update() {
@@ -898,6 +992,10 @@ function update() {
 
     hudBounce += (1.0 - hudBounce) * 0.1;
     document.getElementById('hud-top').style.transform = `scale(${hudBounce})`;
+
+    // Combo Reset
+    if (comboTimer > 0) comboTimer--;
+    else comboCount = 0;
 
     const targetOffset = height * 0.7; 
     const targetCamY = player.y - targetOffset;
@@ -953,23 +1051,27 @@ function update() {
             const hitRadius = e.radius + (b.isPower ? 20 : 10);
             
             if (dist < hitRadius) {
-                e.hp -= (b.isPower ? 10 : 1); // Power bullet instant kill mostly
-                if (!b.isPower) bullets.splice(i,1); // Power bullet pierces
+                e.hp -= (b.isPower ? 10 : 1); 
+                if (!b.isPower) bullets.splice(i,1); 
                 
                 AudioSys.playPop();
                 if(e.hp<=0) {
                     enemies.splice(j,1);
-                    // Stronger hitstop for power kills
                     hitStopFrames = b.isPower ? 6 : 3;
                     if(b.isPower) addShake(5);
                     
+                    // COMBO SYSTEM
+                    comboCount++;
+                    comboTimer = 120; // 2 seconds to chain
+                    AudioSys.playCombo(Math.min(comboCount, 10));
+                    floaters.push(new Floater(e.x, e.y, `${comboCount} HIT!`, '#ffaa00'));
+                    
                     for(let k=0; k<5; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
                     
-                    // DROP ITEM
                     const rand = Math.random();
                     if (rand < 0.25) items.push(new Item(e.x, e.y, 'heart'));
                     else if (rand < 0.45) items.push(new Item(e.x, e.y, 'gem'));
-                    else if (rand < 0.50) items.push(new Item(e.x, e.y, 'power')); // 5% chance Power
+                    else if (rand < 0.50) items.push(new Item(e.x, e.y, 'power'));
                 }
                 break;
             }
@@ -993,10 +1095,8 @@ function update() {
 
     enemies.forEach(e => {
         e.update(player.x, player.y);
-        // Power mode kills enemies on contact
         if (Math.hypot(player.x-e.x, player.y-e.y) < player.radius + e.radius) {
             if (player.powerMode > 0) {
-                // Crush enemy
                 enemies = enemies.filter(en => en !== e);
                 AudioSys.playPop();
                 addShake(5);
@@ -1047,9 +1147,9 @@ function draw() {
 
     ctx.fillStyle = CONFIG.colors.magma;
     ctx.fillRect(0, magmaY, width, height*3);
-    ctx.fillStyle = '#ffaa00';
+    ctx.fillStyle = '#ff5544';
     ctx.beginPath();
-    for(let i=0; i<=width; i+=20) ctx.lineTo(i, magmaY + Math.sin(frameCount*0.2 + i*0.05)*15);
+    for(let i=0; i<=width; i+=20) ctx.lineTo(i, magmaY + Math.sin(frameCount*0.1 + i*0.05)*20);
     ctx.lineTo(width, magmaY+50); ctx.lineTo(0, magmaY+50);
     ctx.fill();
 
@@ -1079,10 +1179,10 @@ function draw() {
             ctx.lineTo(-10, 10);
             ctx.lineTo(10, 10);
             ctx.fill();
-            ctx.font = 'bold 12px Verdana';
+            ctx.font = 'bold 16px Fredoka One';
             ctx.textAlign = 'center';
             ctx.fillStyle = 'white';
-            ctx.fillText("NEXT", 0, 25);
+            ctx.fillText("NEXT", 0, 30);
             ctx.restore();
             return; 
         }
@@ -1101,7 +1201,7 @@ function gameLoop() {
     }
 }
 
-ctx.fillStyle = '#222';
+ctx.fillStyle = '#2b2b40';
 ctx.fillRect(0, 0, width, height);
 </script>
 </body>
