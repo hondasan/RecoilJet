@@ -311,6 +311,10 @@ const AudioSys = {
         const pitch = 400 + (count * 100);
         this.playTone('square', pitch, pitch + 200, 0.1, 0.1);
     },
+    playPop: function() {
+        // "Pon!"
+        this.playTone('triangle', 600, 100, 0.1, 0.1);
+    },
     playDamage: function() {
         // "Bum..."
         this.playTone('sawtooth', 150, 50, 0.3, 0.2);
