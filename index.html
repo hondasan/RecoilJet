@@ -195,7 +195,7 @@
             RELEASE: <b>Spin & Aim</b><br><br>
             Defeat enemies for <b>HEARTS</b>!<br>
             Grab <b>⚡</b> for HYPER MODE!<br>
-            Listen to the cute sounds 🎵
+            Collect items to score!
         </p>
         <div class="start-btn" onclick="startGame()">LET'S GO!</div>
     </div>
@@ -205,7 +205,7 @@
 <script>
 /**
  * RECOIL JET - POP STAR EDITION
- * Focus: Cute Audio, Pop Visuals, Fun Feedback
+ * Focus: Cute Audio, Pop Visuals, Fun Feedback, Item Magnet
  */
 
 const CONFIG = {
@@ -222,6 +222,7 @@ const CONFIG = {
     magmaSpeedBase: 0.8,
     hitStopDuration: 6,
     coyoteTime: 10,
+    itemMagnetRange: 150, // Range to start sucking items
     colors: {
         player: '#44ddff',
         playerOutline: '#fff',
@@ -264,22 +265,25 @@ const AudioSys = {
         osc.start(t);
         osc.stop(t + duration);
     },
-    // Cute "Poko Poko" rotation sound
+    // Cute "Poko Poko" rotation sound - FIXED (Softer)
     playSpin: function() {
-        // Woodblock-like sound
         if (!this.ctx) return;
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, t);
-        osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
+        
+        // Use Triangle wave for softer sound, low pass filtered manually by simple volume env
+        osc.type = 'triangle'; 
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(150, t + 0.05);
+        
         gain.gain.setValueAtTime(0.05, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.05);
+        osc.stop(t + 0.06);
     },
     playJump: function() {
         // "Pyun!"
@@ -495,11 +499,11 @@ class Player {
             // Cute spin sound rhythm (only when grounded or slow)
             if (this.grounded) {
                 this.spinSoundTimer++;
-                if (this.spinSoundTimer > 15) { // "Poko... Poko..."
+                if (this.spinSoundTimer > 15) { 
                     AudioSys.playSpin();
                     this.spinSoundTimer = 0;
-                    this.scaleY = 0.9; // Little bounce
-                    this.scaleX = 1.1;
+                    this.scaleY = 0.95; // Softer bounce
+                    this.scaleX = 1.05;
                 }
             }
         }
@@ -553,7 +557,11 @@ class Player {
 
         this.scaleY = 1.3; this.scaleX = 0.8; 
         addShake(isPower ? 5 : 2);
-        particles.push(new Particle(muzzleX, muzzleY, this.angle, 'puff'));
+        
+        // Jet Particles
+        for(let i=0; i<3; i++) {
+            particles.push(new Particle(muzzleX, muzzleY, this.angle, 'puff'));
+        }
         
         if(isPower) AudioSys.playPowerShoot();
         else AudioSys.playJump();
@@ -642,17 +650,36 @@ class Player {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Goggles (Cute Eyes)
-        ctx.fillStyle = '#333';
-        ctx.fillRect(-18, -4, 36, 6);
-        ctx.fillStyle = '#ffaa00';
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(-7, -1, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(7, -1, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = 'white';
-        // Eye shine
-        ctx.beginPath(); ctx.arc(-9, -3, 3, 0, Math.PI*2); ctx.arc(5, -3, 3, 0, Math.PI*2); ctx.fill();
+        // HERO GOGGLES (Spidey Style)
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        // Left Eye Frame (Sharp)
+        ctx.moveTo(-10, -5);
+        ctx.lineTo(-4, 0);
+        ctx.lineTo(-14, 2);
+        ctx.quadraticCurveTo(-16, -8, -10, -5);
+        // Right Eye Frame
+        ctx.moveTo(10, -5);
+        ctx.lineTo(4, 0);
+        ctx.lineTo(14, 2);
+        ctx.quadraticCurveTo(16, -8, 10, -5);
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff';
+        // Left Eye Lens
+        ctx.beginPath();
+        ctx.moveTo(-10, -4);
+        ctx.lineTo(-5, 0);
+        ctx.lineTo(-13, 1);
+        ctx.quadraticCurveTo(-15, -7, -10, -4);
+        ctx.fill();
+        // Right Eye Lens
+        ctx.beginPath();
+        ctx.moveTo(10, -4);
+        ctx.lineTo(5, 0);
+        ctx.lineTo(13, 1);
+        ctx.quadraticCurveTo(15, -7, 10, -4);
+        ctx.fill();
 
         // HELMET / ANTENNA
         ctx.beginPath();
@@ -724,12 +751,29 @@ class Item {
         this.vx = (Math.random() - 0.5) * 4;
         this.life = 400; 
         this.angle = 0;
+        this.magnet = false; // Magnet mode
     }
-    update() {
-        this.vy += 0.2; 
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vx *= 0.95;
+    update(playerX, playerY) {
+        // Magnet Logic
+        const dx = playerX - this.x;
+        const dy = playerY - this.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist < CONFIG.itemMagnetRange) {
+            this.magnet = true;
+        }
+        
+        if (this.magnet) {
+            const speed = 8;
+            this.x += (dx / dist) * speed;
+            this.y += (dy / dist) * speed;
+        } else {
+            this.vy += 0.2; 
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vx *= 0.95;
+        }
+        
         this.life--;
         this.angle += 0.1;
     }
@@ -1083,7 +1127,7 @@ function update() {
     });
 
     items.forEach((it, i) => {
-        it.update();
+        it.update(player.x, player.y);
         if (it.life <= 0) { items.splice(i, 1); return; }
         
         if (Math.hypot(player.x - it.x, player.y - it.y) < player.radius + 15) {
