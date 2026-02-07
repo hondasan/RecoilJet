@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recoil Jet - Sky Pilot Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: 'Verdana', sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            /* Transition for global UI shake */
+            transition: transform 0.1s;
+        }
+        /* Top HUD Container for Bouncing */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transform-origin: top center;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy easing */
+        }
+        #score-display, #high-score-display {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            text-align: left;
+            line-height: 1.5;
+        }
+        #high-score-display {
+            color: #ffff00;
+        }
+        #hp-display {
+            font-size: 24px;
+            color: #ff99cc;
+            text-shadow: 2px 2px 0 #000;
+        }
+        #heat-container {
+            position: relative;
+            width: 20px;
+            height: 100px;
+            border: 3px solid #fff;
+            background: rgba(0,0,0,0.5);
+            margin-top: 10px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #heat-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background-color: #44ddff;
+            transition: background-color 0.1s;
+        }
+        #magma-warning {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #ff2200;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+            display: none;
+            animation: blinker 0.2s linear infinite; /* Faster blink */
+        }
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        h1 {
+            color: #44ddff;
+            font-size: 36px;
+            margin: 0 0 10px 0;
+            text-shadow: 3px 3px 0 #fff;
+            text-align: center;
+        }
+        p {
+            color: #fff;
+            font-size: 16px;
+            line-height: 1.6;
+            text-align: center;
+            max-width: 400px;
+            background: rgba(0,0,0,0.6);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="hud-top" id="hud-top">
+            <div>
+                <div id="score-display">SCORE: 0<br>HEIGHT: 0m</div>
+                <div id="high-score-display">HI: 0</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <div id="hp-display">❤❤❤</div>
+                <div id="heat-container">
+                    <div id="heat-fill"></div>
+                </div>
+            </div>
+        </div>
+        <div id="magma-warning">⚠ MAGMA RISING ⚠</div>
+    </div>
+
+    <div id="start-screen">
+        <h1>RECOIL JET<br><span style="font-size:0.6em; color:white;">Sky Pilot Edition</span></h1>
+        <p>
+            TAP & HOLD: <b>Shoot & Fly</b><br>
+            RELEASE: <b>Spin & Aim</b><br><br>
+            <b>Magma is faster now!</b><br>
+            Land on islands to rest & bounce.<br>
+            <span style="color:#44ddff">Blue Pilot</span> is ready for takeoff!
+        </p>
+        <p class="blink" style="margin-top: 20px; color: #44ddff; font-weight: bold; font-size: 20px;">[ TAP TO START ]</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+/**
+ * RECOIL JET - SKY PILOT EDITION (v5)
+ * Changes: Blue Character, Bouncy UI, Faster Magma, Coyote Time
+ */
+
+const CONFIG = {
+    gravity: 0.07,          // Still floaty, but slightly heavier than v4
+    rotSpeed: 0.05,
+    recoilForce: 2.1,       // Good strong kick
+    shootRate: 6,
+    heatRate: 2.5,
+    coolRate: 3.0,
+    maxHeat: 100,
+    friction: 0.98,
+    groundFriction: 0.85,
+    cameraLerp: 0.1,
+    magmaSpeedBase: 0.6,    // FASTER (Requested)
+    hitStopDuration: 6,
+    coyoteTime: 10,         // Frames you can still jump after leaving ground
+    colors: {
+        player: '#44ddff',      // Sky Blue
+        playerOutline: '#fff',
+        bullet: '#fff',
+        enemy: '#ffcc00',
+        platform: '#66cc66',
+        bg: '#222',
+        magma: '#ff4400',
+        guideShoot: 'rgba(255, 255, 255, 0.2)',
+        guideMove: 'rgba(68, 221, 255, 0.5)', 
+        marker: '#ffff00',
+        scarf: '#ffaa00'        // Orange (Complementary to Blue)
+    }
+};
+
+// --- AUDIO ---
+const AudioSys = {
+    ctx: null,
+    init: function() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playJump: function() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.linearRampToValueAtTime(600, t + 0.1);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.1);
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+    },
+    playLand: function() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        // Bouncy sound (Pitch bend down then up)
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.linearRampToValueAtTime(100, t + 0.05);
+        osc.frequency.linearRampToValueAtTime(200, t + 0.15);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.15);
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.15);
+    },
+    playPop: function() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.1);
+        osc.type = 'square';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+    },
+    playDamage: function() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.linearRampToValueAtTime(80, t + 0.3);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.3);
+        osc.type = 'sawtooth';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.3);
+    }
+};
+
+// --- ENGINE ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+let width, height;
+
+// State
+let gameState = 'START';
+let score = 0;
+let highScore = parseInt(localStorage.getItem('recoilJetHighScore')) || 0;
+let altitude = 0;
+let frameCount = 0;
+let hitStopFrames = 0;
+let shakeIntensity = 0;
+let floaters = [];
+
+// UI Bouncing State
+let hudBounce = 1.0;
+
+const input = { active: false };
+const startEvents = ['mousedown', 'touchstart', 'keydown'];
+const endEvents = ['mouseup', 'touchend', 'keyup'];
+
+function handleInputStart(e) {
+    if (e.type === 'keydown' && e.code !== 'Space') return;
+    if (e.type === 'touchstart') e.preventDefault();
+    input.active = true;
+    if (gameState === 'START' || gameState === 'GAMEOVER') startGame();
+}
+function handleInputEnd() { input.active = false; }
+startEvents.forEach(evt => window.addEventListener(evt, handleInputStart, { passive: false }));
+endEvents.forEach(evt => window.addEventListener(evt, handleInputEnd));
+
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    document.getElementById('high-score-display').innerText = `HI: ${highScore}`;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- ENTITIES ---
+
+class Scarf {
+    constructor(length) {
+        this.nodes = [];
+        this.length = length;
+        for (let i = 0; i < length; i++) {
+            this.nodes.push({ x: 0, y: 0 });
+        }
+    }
+
+    update(headX, headY) {
+        this.nodes[0] = { x: headX, y: headY };
+        for (let i = 1; i < this.length; i++) {
+            let prev = this.nodes[i-1];
+            let curr = this.nodes[i];
+            let dx = prev.x - curr.x;
+            let dy = prev.y - curr.y;
+            curr.x += dx * 0.3; 
+            curr.y += dy * 0.3;
+            curr.y += 0.5; // Gravity
+        }
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(this.nodes[0].x, this.nodes[0].y);
+        for (let i = 1; i < this.length; i++) {
+             const xc = (this.nodes[i].x + this.nodes[i - 1].x) / 2;
+             const yc = (this.nodes[i].y + this.nodes[i - 1].y) / 2;
+             ctx.quadraticCurveTo(this.nodes[i - 1].x, this.nodes[i - 1].y, xc, yc);
+        }
+        ctx.lineTo(this.nodes[this.length-1].x, this.nodes[this.length-1].y);
+        ctx.strokeStyle = CONFIG.colors.scarf;
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
+
+class Player {
+    constructor() {
+        this.x = width / 2;
+        this.y = height / 2;
+        this.vx = 0;
+        this.vy = 0;
+        this.angle = -Math.PI / 2;
+        this.radius = 18;
+        this.heat = 0;
+        this.hp = 3;
+        this.maxHp = 3;
+        this.overheated = false;
+        this.invincible = 0;
+        this.grounded = false;
+        this.coyoteTimer = 0; // Frames since left ground
+        this.dead = false;
+        this.scaleX = 1;
+        this.scaleY = 1;
+        this.scarf = new Scarf(10);
+    }
+
+    update() {
+        if (this.dead) return;
+
+        if (!this.grounded) {
+            this.vy += CONFIG.gravity;
+            this.coyoteTimer++;
+        } else {
+            this.coyoteTimer = 0;
+        }
+
+        const canShoot = input.active && !this.overheated;
+
+        if (canShoot) {
+            this.heat += CONFIG.heatRate;
+            this.grounded = false;
+            // No coyote reset here, you are flying
+            if (this.heat >= CONFIG.maxHeat) {
+                this.overheated = true;
+                this.heat = CONFIG.maxHeat;
+                setTimeout(() => { this.overheated = false; }, 1000);
+            }
+
+            if (frameCount % CONFIG.shootRate === 0) {
+                this.shoot();
+            }
+        } else {
+            this.angle += CONFIG.rotSpeed;
+            this.heat = Math.max(0, this.heat - CONFIG.coolRate);
+        }
+
+        // Friction
+        if (this.grounded) {
+            this.vx *= CONFIG.groundFriction;
+            this.scaleX += (1 - this.scaleX) * 0.2;
+            this.scaleY += (1 - this.scaleY) * 0.2;
+        } else {
+            this.vx *= CONFIG.friction;
+            this.vy *= CONFIG.friction;
+            this.scaleX += (1 - this.scaleX) * 0.1;
+            this.scaleY += (1 - this.scaleY) * 0.1;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Walls
+        if (this.x < this.radius) {
+            this.x = this.radius;
+            this.vx *= -0.6;
+        }
+        if (this.x > width - this.radius) {
+            this.x = width - this.radius;
+            this.vx *= -0.6;
+        }
+
+        this.scarf.update(this.x, this.y);
+        if (this.invincible > 0) this.invincible--;
+        this.updateUI();
+    }
+    
+    updateUI() {
+        let hearts = "";
+        for(let i=0; i<this.maxHp; i++) hearts += (i < this.hp) ? "❤" : "♡";
+        document.getElementById('hp-display').innerText = hearts;
+        
+        const fill = document.getElementById('heat-fill');
+        fill.style.height = `${(this.heat / CONFIG.maxHeat) * 100}%`;
+        fill.style.backgroundColor = this.overheated ? '#ff3333' : '#44ddff';
+    }
+
+    shoot() {
+        const muzzleX = this.x + Math.cos(this.angle) * (this.radius + 8);
+        const muzzleY = this.y + Math.sin(this.angle) * (this.radius + 8);
+        
+        bullets.push(new Bullet(muzzleX, muzzleY, this.angle));
+
+        const fx = Math.cos(this.angle) * CONFIG.recoilForce;
+        const fy = Math.sin(this.angle) * CONFIG.recoilForce;
+        this.vx -= fx;
+        this.vy -= fy;
+
+        this.scaleY = 1.3; 
+        this.scaleX = 0.8; 
+
+        addShake(2);
+        particles.push(new Particle(muzzleX, muzzleY, this.angle, 'puff'));
+        AudioSys.playJump();
+    }
+
+    land() {
+        if (!this.grounded) {
+            // Coyote Time check: if we were grounded very recently, don't play land impact again?
+            // Actually, landing physics should trigger every time we touch down.
+            this.grounded = true;
+            this.vy = 0;
+            
+            // Squash
+            this.scaleY = 0.6;
+            this.scaleX = 1.4;
+            
+            // UI BOUNCE!
+            hudBounce = 1.15;
+            
+            AudioSys.playLand();
+            
+            for(let i=0; i<5; i++) {
+                particles.push(new Particle(this.x + (Math.random()-0.5)*20, this.y+this.radius, -Math.PI/2, 'puff'));
+            }
+        }
+    }
+
+    takeDamage() {
+        if (this.invincible > 0 || this.dead) return;
+        this.hp--;
+        this.invincible = 60;
+        addShake(15);
+        hudBounce = 0.9; // Shrink UI on damage
+        AudioSys.playDamage();
+        if (this.hp <= 0) {
+            this.dead = true;
+            gameOver();
+        } else {
+            this.vy = -5;
+        }
+    }
+
+    draw(ctx) {
+        if (this.dead) return;
+        if (this.invincible > 0 && Math.floor(frameCount / 4) % 2 === 0) return;
+
+        this.scarf.draw(ctx);
+
+        // Guides
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - Math.cos(this.angle) * 150, this.y - Math.sin(this.angle) * 150);
+        ctx.strokeStyle = CONFIG.colors.guideMove;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([10, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.scaleX, this.scaleY);
+        ctx.rotate(this.angle + Math.PI/2); 
+
+        // Body
+        ctx.fillStyle = CONFIG.colors.player;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = CONFIG.colors.playerOutline;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Goggles
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-18, -4, 36, 6);
+        ctx.fillStyle = '#ffaa00'; // Amber Lenses (Contrast)
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(-7, -1, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(7, -1, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(-9, -3, 2, 0, Math.PI*2); ctx.arc(5, -3, 2, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+class Platform {
+    constructor(x, y, w) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = 24;
+    }
+    draw(ctx) {
+        ctx.fillStyle = CONFIG.colors.platform;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, this.h, 12);
+        ctx.fill();
+        ctx.fillStyle = '#ccffcc';
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, 8, 4);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.roundRect(this.x+5, this.y+this.h-8, this.w-10, 4, 2);
+        ctx.fill();
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle) {
+        this.x = x;
+        this.y = y;
+        this.vx = Math.cos(angle) * 14;
+        this.vy = Math.sin(angle) * 14;
+        this.life = 40;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+    }
+    draw(ctx) {
+        ctx.fillStyle = CONFIG.colors.bullet;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+class Enemy {
+    constructor(y) {
+        this.x = Math.random() * (width - 60) + 30;
+        this.y = y;
+        this.radius = 16;
+        this.hp = 1;
+        this.angle = 0;
+        this.startX = this.x;
+        this.offset = Math.random() * 100;
+    }
+    update() {
+        this.angle += 0.05;
+        this.x = this.startX + Math.sin(this.angle * 2 + this.offset) * 60;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = CONFIG.colors.enemy;
+        ctx.beginPath();
+        for(let i=0; i<8; i++) {
+            let rot = this.angle + (i * Math.PI * 2) / 8;
+            let r = (i%2===0) ? this.radius : this.radius * 0.6;
+            let px = Math.cos(rot) * r;
+            let py = Math.sin(rot) * r;
+            ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, angle, type) {
+        this.x = x;
+        this.y = y;
+        this.life = 1.0;
+        this.type = type;
+        const speed = (type === 'puff') ? 2 : 5;
+        this.vx = (Math.random()-0.5)*speed;
+        this.vy = (Math.random()-0.5)*speed;
+        this.decay = (type === 'puff') ? 0.08 : 0.05;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = (this.type === 'puff') ? '#fff' : CONFIG.colors.enemy;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, (this.type === 'puff') ? 8 : 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+class Floater {
+    constructor(x, y, text) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.life = 40;
+    }
+    update() { this.y -= 1; this.life--; }
+    draw(ctx) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.life/40})`;
+        ctx.font = 'bold 20px Verdana';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+    }
+}
+
+// --- GLOBALS ---
+let player;
+let bullets = [];
+let enemies = [];
+let platforms = [];
+let particles = [];
+let magmaY = 0;
+let cameraY = 0;
+let levelGenY = 0;
+
+function addShake(amt) { shakeIntensity = Math.min(shakeIntensity + amt, 15); }
+
+function saveHighScore() {
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('recoilJetHighScore', highScore);
+        document.getElementById('high-score-display').innerText = `HI: ${highScore}`;
+    }
+}
+
+function generateLevel() {
+    while (levelGenY > cameraY - height * 2) {
+        const gap = 110; 
+        levelGenY -= gap; 
+        
+        const rand = Math.random();
+        const w = 150 + Math.random() * 150;
+        const x = Math.random() * (width - w);
+
+        const currentHeight = Math.abs(levelGenY);
+        let enemyChance = 0.3;
+        if (currentHeight < 1500) enemyChance = 0;
+
+        if (rand > enemyChance) {
+             platforms.push(new Platform(x, levelGenY, w));
+        } else {
+             enemies.push(new Enemy(levelGenY));
+        }
+    }
+    
+    const delY = cameraY + height + 200;
+    enemies = enemies.filter(e => e.y < delY);
+    platforms = platforms.filter(p => p.y < delY);
+}
+
+function startGame() {
+    AudioSys.init();
+    player = new Player();
+    bullets = [];
+    enemies = [];
+    platforms = [];
+    particles = [];
+    floaters = [];
+    score = 0;
+    frameCount = 0;
+    magmaY = height + 800; 
+    cameraY = 0;
+    levelGenY = -200;
+    hudBounce = 1.0;
+    
+    platforms.push(new Platform(width/2 - 100, height/2 + 100, 200));
+
+    gameState = 'PLAY';
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('magma-warning').style.display = 'none';
+    gameLoop();
+}
+
+function gameOver() {
+    gameState = 'GAMEOVER';
+    saveHighScore();
+    AudioSys.playDamage();
+    document.getElementById('start-screen').style.display = 'flex';
+    document.querySelector('#start-screen h1').innerText = "TRY AGAIN?";
+    document.querySelector('#start-screen p').innerHTML = 
+        `SCORE: ${score}<br>HI: ${highScore}<br>HEIGHT: ${Math.floor(altitude)}m`;
+}
+
+function update() {
+    if (hitStopFrames > 0) { hitStopFrames--; return; }
+
+    // UI Bounce Physics
+    hudBounce += (1.0 - hudBounce) * 0.1;
+    document.getElementById('hud-top').style.transform = `scale(${hudBounce})`;
+
+    const targetOffset = height * 0.7; 
+    const targetCamY = player.y - targetOffset;
+    cameraY += (targetCamY - cameraY) * CONFIG.cameraLerp;
+    
+    // Faster Magma
+    let magmaSpeed = CONFIG.magmaSpeedBase + (Math.abs(cameraY) / 8000); // Faster acceleration
+    if (player.y > magmaY - 300) magmaSpeed *= 0.5; // Mercy
+    magmaY -= magmaSpeed;
+
+    const dist = magmaY - player.y;
+    const warn = document.getElementById('magma-warning');
+    if (dist < 500 && !player.dead) {
+        warn.style.display = 'block';
+        warn.style.opacity = 1 - (dist/500);
+    } else {
+        warn.style.display = 'none';
+    }
+
+    if (player.y > magmaY) {
+        player.dead = true;
+        gameOver();
+    }
+
+    player.update();
+
+    // Platform Logic
+    player.grounded = false;
+    platforms.forEach(p => {
+        if (player.vy >= 0 &&
+            player.y + player.radius >= p.y &&
+            player.y - player.radius < p.y + p.h &&
+            player.x > p.x && player.x < p.x + p.w)
+        {
+             if ((player.y + player.radius) - p.y < 30) { 
+                 player.y = p.y - player.radius;
+                 player.land();
+             }
+        }
+    });
+
+    bullets.forEach((b, i) => {
+        b.update();
+        if (b.life<=0) { bullets.splice(i,1); return; }
+        
+        for(let j=enemies.length-1; j>=0; j--) {
+            let e = enemies[j];
+            if (Math.hypot(b.x-e.x, b.y-e.y) < e.radius+10) {
+                e.hp--;
+                bullets.splice(i,1);
+                AudioSys.playPop();
+                if(e.hp<=0) {
+                    enemies.splice(j,1);
+                    score += 100;
+                    floaters.push(new Floater(e.x, e.y, "+100"));
+                    hitStopFrames = 3;
+                    for(let k=0; k<5; k++) particles.push(new Particle(e.x, e.y, 0, 'debris'));
+                }
+                break;
+            }
+        }
+    });
+
+    enemies.forEach(e => {
+        e.update();
+        if (Math.hypot(player.x-e.x, player.y-e.y) < player.radius + e.radius) {
+            player.takeDamage();
+            player.vx = (player.x - e.x) * 0.2;
+            player.vy = -5;
+        }
+    });
+
+    particles.forEach((p, i) => {
+        p.update();
+        if(p.life<=0) particles.splice(i,1);
+    });
+    floaters.forEach((f, i) => {
+        f.update();
+        if(f.life<=0) floaters.splice(i,1);
+    });
+
+    generateLevel();
+    altitude = Math.max(altitude, Math.abs(Math.min(0, player.y)) / 10);
+    frameCount++;
+}
+
+function findNextTarget() {
+    let best = null;
+    let minDist = Infinity;
+    platforms.forEach(p => {
+        if (p.y < player.y - 50) {
+            const dy = player.y - p.y;
+            if (dy < minDist) {
+                minDist = dy;
+                best = p;
+            }
+        }
+    });
+    return best;
+}
+
+function draw() {
+    ctx.fillStyle = CONFIG.colors.bg;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    let shakeX = (Math.random()-0.5) * shakeIntensity;
+    let shakeY = (Math.random()-0.5) * shakeIntensity;
+    shakeIntensity *= 0.9;
+    if (Math.abs(shakeIntensity)<0.5) shakeIntensity = 0;
+    
+    ctx.translate(shakeX, shakeY - cameraY);
+
+    ctx.fillStyle = CONFIG.colors.magma;
+    ctx.fillRect(0, magmaY, width, height*3);
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    for(let i=0; i<=width; i+=20) ctx.lineTo(i, magmaY + Math.sin(frameCount*0.2 + i*0.05)*15);
+    ctx.lineTo(width, magmaY+50); ctx.lineTo(0, magmaY+50);
+    ctx.fill();
+
+    platforms.forEach(p => p.draw(ctx));
+    enemies.forEach(e => e.draw(ctx));
+    particles.forEach(p => p.draw(ctx));
+    bullets.forEach(b => b.draw(ctx));
+    player.draw(ctx);
+    floaters.forEach(f => f.draw(ctx));
+
+    const target = findNextTarget();
+    if (target) {
+        const tx = target.x + target.w / 2;
+        const ty = target.y;
+        const screenY = ty - cameraY;
+        if (screenY < 0) {
+            ctx.restore(); 
+            ctx.save();
+            const indicatorX = Math.max(20, Math.min(width-20, tx));
+            ctx.translate(indicatorX, 30);
+            ctx.translate(0, Math.sin(frameCount * 0.2) * 5);
+            ctx.fillStyle = CONFIG.colors.marker;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-10, 10);
+            ctx.lineTo(10, 10);
+            ctx.fill();
+            ctx.font = 'bold 12px Verdana';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+            ctx.fillText("NEXT", 0, 25);
+            ctx.restore();
+            return; 
+        }
+    }
+
+    ctx.restore();
+    
+    document.getElementById('score-display').innerHTML = `SCORE: ${score}<br>HEIGHT: ${Math.floor(altitude)}m`;
+}
+
+function gameLoop() {
+    if (gameState === 'PLAY') {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+ctx.fillStyle = '#222';
+ctx.fillRect(0, 0, width, height);
+</script>
+</body>
+</html>
