@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Recoil Jet - Discovery Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
@@ -12,8 +12,10 @@
             overflow: hidden;
             background-color: #2b2b40;
             font-family: 'Fredoka One', cursive, sans-serif;
-            touch-action: none;
+            touch-action: none; /* Prevent browser zooming/scrolling */
             user-select: none;
+            -webkit-user-select: none; /* Safari */
+            -webkit-touch-callout: none; /* Safari */
         }
         canvas {
             display: block;
@@ -160,14 +162,17 @@
             margin-top: 30px;
             color: #fff;
             background-color: #ff3366;
-            padding: 15px 40px;
+            padding: 20px 60px; /* Larger touch area */
             border-radius: 50px;
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             box-shadow: 0 6px 0 #aa2244;
             transition: transform 0.1s, box-shadow 0.1s;
             cursor: pointer;
             text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
         .start-btn:active {
             transform: translateY(4px);
@@ -203,7 +208,7 @@
             Defeat new enemies!<br>
             Discover the sky!
         </p>
-        <div class="start-btn" onclick="startGame()">LET'S GO!</div>
+        <div class="start-btn" id="start-btn">LET'S GO!</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -211,7 +216,7 @@
 <script>
 /**
  * RECOIL JET - DISCOVERY EDITION
- * Updates: Spider-Eyes, No Spin Sound, New Items (Shield, Boost), New Enemies, Moving Platforms
+ * Updates: Improved Touch/Mobile Support
  */
 
 const CONFIG = {
@@ -254,8 +259,13 @@ const CONFIG = {
 const AudioSys = {
     ctx: null,
     init: function() {
-        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
     },
     playTone: function(type, freqStart, freqEnd, duration, vol) {
         if (!this.ctx) return;
@@ -350,18 +360,47 @@ let comboTimer = 0;
 let hudBounce = 1.0;
 
 const input = { active: false };
-const startEvents = ['mousedown', 'touchstart', 'keydown'];
-const endEvents = ['mouseup', 'touchend', 'keyup'];
 
+// --- INPUT HANDLING ---
 function handleInputStart(e) {
     if (e.type === 'keydown' && e.code !== 'Space') return;
+    // preventDefault helps with mobile browser behaviors
     if (e.type === 'touchstart') e.preventDefault();
+    
     input.active = true;
-    if (gameState === 'GAMEOVER') startGame();
+    
+    if (gameState === 'GAMEOVER') {
+        startGame(); // Allow restart with tap anywhere
+    }
 }
-function handleInputEnd() { input.active = false; }
-startEvents.forEach(evt => window.addEventListener(evt, handleInputStart, { passive: false }));
-endEvents.forEach(evt => window.addEventListener(evt, handleInputEnd));
+
+function handleInputEnd(e) {
+    // If touch event, check if other fingers are still down
+    if (e.type === 'touchend' && e.touches.length > 0) {
+        return;
+    }
+    input.active = false;
+}
+
+// Add event listeners to window for game control
+window.addEventListener('mousedown', handleInputStart);
+window.addEventListener('touchstart', handleInputStart, { passive: false });
+window.addEventListener('keydown', handleInputStart);
+
+window.addEventListener('mouseup', handleInputEnd);
+window.addEventListener('touchend', handleInputEnd);
+window.addEventListener('keyup', handleInputEnd);
+
+// Start Button specific handling (Improved for mobile)
+const startBtn = document.getElementById('start-btn');
+const startAction = (e) => {
+    e.preventDefault(); // Stop ghost clicks
+    e.stopPropagation();
+    startGame();
+};
+startBtn.addEventListener('touchstart', startAction, { passive: false });
+startBtn.addEventListener('click', startAction);
+
 
 function resize() {
     width = window.innerWidth;
@@ -1016,15 +1055,11 @@ function generateLevel() {
              hazards.push(new HazardWall(x, levelGenY, 100, 30));
         } else if (rand < hazardChance + enemyChance) {
              let type = 0;
-             if (currentHeight > 3000 && Math.random() > 0.7) type = 1; // Chaser
-             if (currentHeight > 5000 && Math.random() > 0.5) type = 2; // Zigzag
-             if (currentHeight > 7000 && Math.random() > 0.6) type = 3; // Gazer
-             if (currentHeight > 2000 && Math.random() > 0.8) type = 4; // Blocker
+             if (currentHeight > 3000 && Math.random() > 0.7) type = 1; 
+             if (currentHeight > 5000 && Math.random() > 0.5) type = 2; 
              enemies.push(new Enemy(levelGenY, type));
         } else {
-             // Moving platform chance
-             const isMoving = (currentHeight > 4000 && Math.random() > 0.5);
-             platforms.push(new Platform(x, levelGenY, w, isMoving));
+             platforms.push(new Platform(x, levelGenY, w));
         }
     }
     
@@ -1071,6 +1106,7 @@ function gameOver() {
     document.querySelector('#start-screen h1').innerText = "GAME OVER";
     document.querySelector('#start-screen p').innerHTML = 
         `REACHED: ${Math.floor(maxAltitude)}m<br>BEST: ${highScore}m`;
+    // Change button text
     document.querySelector('.start-btn').innerText = "TRY AGAIN";
 }
 
